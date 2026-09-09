@@ -1,0 +1,83 @@
+# MIKAEL HQ — SETUP
+
+This update adds a private Mikael HQ plus a two-way Co-Op World.
+
+## 1. Cloudflare Worker
+
+Replace your deployed `cloudflare-worker.js` with the included file.
+
+Your existing KV binding must remain:
+
+- `LIZZY_CLAIMS`
+
+Add one Worker secret:
+
+- `MIKAEL_HQ_KEY`
+
+Choose a long random password/key. Do NOT put this secret inside the public Lizzy website.
+
+Your existing secrets remain:
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+The worker now provides:
+- two-way letters
+- Mikael messages
+- chess state + chess help requests
+- escape-room state + chat
+- HQ dashboard/activity
+- existing LizzyOS notification functionality
+
+## 2. Mikael HQ
+
+Open:
+
+`mikael-hq.html`
+
+Enter the same value you used for `MIKAEL_HQ_KEY`.
+
+For a deployed site, keep this file alongside the main website.
+
+## 3. Lizzy Co-Op World
+
+The main Lizzy desktop now has:
+
+`❤️ Our Co-Op World`
+
+It opens `coop.html`.
+
+Lizzy can:
+- play chess as White
+- request chess explanations/hints from Mikael
+- see Mikael's replies as normal LizzyOS messages
+- enter the two-player escape room
+- communicate with Mikael inside the escape room
+
+Mikael HQ can:
+- see chess help requests
+- send teaching tips
+- play Black
+- start/reset the escape room
+- see Mikael-side escape clues
+- chat with Lizzy
+- read and reply to Lizzy letters
+
+## Important security note
+
+The public Lizzy site can submit letters and game moves because it has to communicate with the Worker. The private HQ endpoints require `X-Mikael-HQ-Key`.
+
+For a production version, the next upgrade should be proper player authentication/session tokens rather than relying on the public browser identity.
+
+## Suggested next build
+
+After this is working, add:
+- proper two-person escape-room puzzle engine
+- private Lizzy↔Mikael chat
+- scheduled messages
+- shared memories
+- co-op missions
+- shared achievements
+- richer chess teaching mode
+- push/in-site notifications
+- a real persistent login for Mikael HQ

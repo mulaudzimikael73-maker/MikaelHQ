@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Co-Op World — LizzyOS</title><link rel="stylesheet" href="coop.css"></head><body>
+<header><div><span>❤️ OUR WORLD</span><h1>Mikael × Lizzy</h1><p>A place where you actually play together.</p></div><button id="back">← Back</button></header>
+<main>
+<section class="tabs"><button class="active" data-tab="chess">♟️ Chess</button><button data-tab="escape">🔐 Escape Room</button></section>
+<section id="chess" class="tab">
+<div class="intro"><div><span class="pill">LEARNING MODE</span><h2>♟️ Mikael Teaches Lizzy Chess</h2><p>You are White. Mikael is Black. You can ask him for help without giving up control of your move.</p></div><div id="turn" class="turn">Loading…</div></div>
+<div class="game-layout"><div><div id="board" class="board"></div><div class="legend">🌸 Lizzy = White &nbsp; • &nbsp; 🖤 Mikael = Black</div></div>
+<div class="panel"><h3>🎓 Need help?</h3><div class="help-buttons"><button data-help="How does this piece move?">How does this piece move?</button><button data-help="Give me a hint.">Give me a hint.</button><button data-help="I have no idea what to do 😭">Rescue me 😭</button></div><textarea id="customHelp" placeholder="Ask Mikael something specific…"></textarea><button class="send" id="askHelp">💬 Ask Mikael</button><div id="hintBox" class="hint"></div><hr><h3>📜 Moves</h3><div id="moves">No moves yet.</div></div></div>
+</section>
+<section id="escape" class="tab hidden">
+<div class="intro"><div><span class="pill">TWO PLAYER</span><h2>🔐 The Locked House</h2><p>You can't solve this alone. Mikael has clues that you don't, and you have clues he doesn't.</p></div><div id="escapeStatus" class="turn">Waiting…</div></div>
+<div class="game-layout escape-layout"><div class="panel"><h3>🌸 Your clues</h3><div id="lizzyClues" class="clues"></div></div><div class="panel"><h3>💬 Talk to Mikael</h3><div id="chat" class="chat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Mikael what you found…"><button class="send" id="chatSend">Send</button></div></div></div>
+</section>
+</main><script src="https://cdn.jsdelivr.net/npm/chess.js@1.2.0/dist/cjs/chess.js"></script><script src="coop.js"></script></body></html>

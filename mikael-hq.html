@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mikael HQ — LizzyOS</title>
+<link rel="stylesheet" href="mikael-hq.css">
+</head>
+<body>
+<div id="login" class="screen">
+  <div class="login-card">
+    <div class="seal">🖤</div>
+    <p class="eyebrow">LIZZYOS // PRIVATE SYSTEM</p>
+    <h1>MIKAEL HQ</h1>
+    <p>Command centre for messages, letters and co-op games.</p>
+    <input id="hqKey" type="password" placeholder="HQ access key" autocomplete="off">
+    <button id="loginBtn">Enter HQ</button>
+    <div id="loginStatus"></div>
+    <small>Set the <code>MIKAEL_HQ_KEY</code> secret on your Cloudflare Worker first.</small>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <aside>
+    <div class="brand"><span>🖤</span><div><b>MIKAEL HQ</b><small>LizzyOS command centre</small></div></div>
+    <nav>
+      <button data-view="dashboard" class="active">🏠 Command Centre</button>
+      <button data-view="letters">💌 Letters <span id="letterBadge"></span></button>
+      <button data-view="chess">♟️ Co-Op Chess</button>
+      <button data-view="escape">🔐 Escape Room</button>
+      <button data-view="create">✍️ Create</button>
+      <button data-view="activity">📡 Activity</button>
+    </nav>
+    <div class="sidebar-foot"><span id="apiDot">●</span> Worker connected<button id="logoutBtn">Lock HQ</button></div>
+  </aside>
+
+  <main>
+    <header>
+      <div><p class="eyebrow">PRIVATE COMMAND CENTRE</p><h2 id="viewTitle">Good to see you, Mr Perfect.</h2></div>
+      <div class="live"><span>●</span> LIVE <small id="lastSync">—</small></div>
+    </header>
+
+    <section id="dashboard" class="view">
+      <div class="hero"><div><span class="pill">🟢 CO-OP READY</span><h1>Your side of LizzyOS.</h1><p>Read what Lizzy sends you, answer her, start games and leave things for her to discover.</p></div><div class="hero-mark">M×L<br><small>OUR WORLD</small></div></div>
+      <div class="stats">
+        <div><b id="statLetters">0</b><span>Unread letters</span></div>
+        <div><b id="statQuestions">0</b><span>Open questions</span></div>
+        <div><b id="statGames">0</b><span>Co-op games</span></div>
+        <div><b id="statActivity">0</b><span>Recent activity</span></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-head"><h3>💌 Latest from Lizzy</h3><button class="linkBtn" data-go="letters">View all</button></div><div id="latestLetter" class="empty">No letters yet.</div></div>
+        <div class="card"><div class="card-head"><h3>🎮 Co-op status</h3><button class="linkBtn" data-go="chess">Open chess</button></div><div id="gameStatus" class="empty">No active game.</div></div>
+      </div>
+    </section>
+
+    <section id="letters" class="view hidden">
+      <div class="section-intro"><div><span class="pill">TWO-WAY</span><h2>💌 Letter Room</h2><p>Every letter Lizzy sends becomes part of your shared archive. Reply directly from HQ.</p></div><button class="primary" id="refreshLetters">↻ Refresh</button></div>
+      <div id="lettersList" class="letters-list"></div>
+    </section>
+
+    <section id="chess" class="view hidden">
+      <div class="section-intro"><div><span class="pill">2 PLAYER</span><h2>♟️ Mikael × Lizzy Chess</h2><p>Teach her while you play. Lizzy can request a hint, advice or an explanation at any point.</p></div><div class="turn" id="chessTurn">Loading…</div></div>
+      <div class="chess-layout">
+        <div class="card board-card"><div id="chessBoard" class="board"></div><div class="board-actions"><button id="resetChess">New Game</button><button id="refreshChess">↻ Sync</button></div></div>
+        <div class="card">
+          <h3>💬 Lizzy's help desk</h3><div id="helpRequests" class="help-requests empty">No requests.</div>
+          <hr><h3>🎓 Teach mode</h3>
+          <p class="muted">Send an explanation without giving away the move.</p>
+          <textarea id="hintText" placeholder="e.g. Remember, knights move in an L and can jump over pieces."></textarea>
+          <button class="primary" id="sendHint">Send to Lizzy</button>
+          <hr><h3>📜 Move history</h3><div id="moveHistory" class="moves">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="escape" class="view hidden">
+      <div class="section-intro"><div><span class="pill">CO-OP</span><h2>🔐 Escape Room</h2><p>Start with a two-player prototype: Lizzy and Mikael receive different clues and must communicate.</p></div><button class="primary" id="startEscape">Start / Reset Room</button></div>
+      <div class="escape-grid">
+        <div class="card"><h3>🗺️ Mikael's clues</h3><div id="mikaelClues" class="clues"></div></div>
+        <div class="card"><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div>
+      </div>
+    </section>
+
+    <section id="create" class="view hidden">
+      <div class="section-intro"><div><span class="pill">MIKAEL → LIZZY</span><h2>✍️ Leave Something</h2><p>Use HQ to create the things she sees on her side.</p></div></div>
+      <div class="create-grid">
+        <form id="messageForm" class="card"><h3>💌 Quick message</h3><textarea id="messageText" required placeholder="Write something for Lizzy…"></textarea><button class="primary">Send message</button><div id="messageResult"></div></form>
+        <form id="questionForm" class="card"><h3>❓ Ask Lizzy</h3><input id="questionText" required placeholder="Question she can answer"><button class="primary">Send question</button><div id="questionResult"></div></form>
+      </div>
+    </section>
+
+    <section id="activity" class="view hidden">
+      <div class="section-intro"><div><span class="pill">LIVE FEED</span><h2>📡 Shared Activity</h2><p>Things happening across the two-player system.</p></div><button class="primary" id="refreshActivity">↻ Refresh</button></div>
+      <div id="activityList" class="activity-list"></div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chess.js@1.2.0/dist/cjs/chess.js"></script>
+<script src="mikael-hq.js"></script>
+</body>
+</html>
