@@ -8,13 +8,16 @@ let chessGame=null, selected=null, chessState=null, syncTimer=null;
 
 function headers(){return {"Content-Type":"application/json","X-Mikael-HQ-Key":apiKey};}
 async function api(action, body={}){
-  const opts={method:body&&Object.keys(body).length?"POST":"GET",headers:headers(),cache:"no-store"};
-  if(opts.method==="POST")opts.body=JSON.stringify({action,...body});
-  const url=WORKER+"?action="+encodeURIComponent(action);
-  const r=await fetch(url,opts);
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok||d.success===false)throw new Error(d.error||`HTTP ${r.status}`);
-  return d;
+  const payload={action,...body,hqKey:apiKey};
+  try{
+    const r=await fetch(WORKER,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store"});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.success===false)throw new Error(d.error||`HTTP ${r.status}`);
+    return d;
+  }catch(e){
+    if(e instanceof TypeError)throw new Error("Could not reach the HQ Worker. Make sure the latest cloudflare-worker.js is deployed.");
+    throw e;
+  }
 }
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 function time(s){try{return new Date(s).toLocaleString([], {dateStyle:"medium",timeStyle:"short"})}catch{return s||""}}
