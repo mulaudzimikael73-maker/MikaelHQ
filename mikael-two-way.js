@@ -11,7 +11,7 @@ async function sendLetter(){
   const d=await r.json();if(!r.ok||d.success===false)throw new Error(d.error||"Could not send");
   $("mikaelLetterText").value="";$("mikaelLetterSubject").value="";
   status.textContent="💌 Letter delivered to Mikael.";
- }catch(e){status.textContent="Could not send right now. Please try again."}
+ }catch(e){status.textContent="Could not send: "+(e?.message||"Worker error")}
 }
 $("writeMikaelLetter")?.addEventListener("click",()=>{$("mikaelLetterForm")?.classList.remove("hidden");$("writeMikaelLetter").classList.add("hidden");$("mikaelLetterText")?.focus()});
 $("cancelMikaelLetter")?.addEventListener("click",()=>{$("mikaelLetterForm")?.classList.add("hidden");$("writeMikaelLetter").classList.remove("hidden")});

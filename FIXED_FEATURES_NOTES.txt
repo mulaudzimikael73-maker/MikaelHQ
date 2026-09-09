@@ -1,0 +1,1 @@
+FIXES: HQ auth env bug; browser-compatible chess.js; Telegram failures no longer block website actions; clearer error messages.
