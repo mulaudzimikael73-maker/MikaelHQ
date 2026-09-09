@@ -41,7 +41,30 @@ async function hqActivity(env,type,text,meta={}){
 async function hqLetters(env){const xs=await arrKV(env,HQ_LETTER_INDEX);return xs.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));}
 async function hqMessages(env){const xs=await arrKV(env,HQ_MESSAGE_INDEX);return xs.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));}
 const defaultChess=()=>({id:"chess-main",fen:"start",pgn:"",turn:"w",status:"active",lastMove:null,updatedAt:new Date().toISOString()});
-const defaultEscape=()=>({status:"ready",progress:"Waiting for Lizzy to enter the room.",mikaelClues:["The wall clock is stuck at 10:20.","The blue key is NOT the first key.","The symbol you need looks like a crescent with one dot.","Tell Lizzy: the painting has four corners."],lizzyClues:["The bookshelf has three red books.","The door needs two codes.","Something is hidden under the chair."],chat:[],updatedAt:new Date().toISOString()});
+const defaultEscape=()=>({
+ status:"ready",
+ progress:"Waiting for Mikael to start the room.",
+ stage:1,
+ solvedStages:[],
+ attempts:0,
+ mikaelClues:[
+  "ROOM RULE: You have half the information. Lizzy has the other half.",
+  "LOCK 1 — The wall clock is stuck at 10:20. Take the HOUR only.",
+  "LOCK 2 — The painting has four corners. Take the number of corners.",
+  "LOCK 3 — The strange symbol is a crescent with ONE dot. Take the number of dots.",
+  "Do not give Lizzy your answers alone — combine them with her clues."
+ ],
+ lizzyClues:[
+  "ROOM RULE: You have half the information. Mikael has the other half.",
+  "LOCK 1 — The bookshelf has THREE red books. Take the number of red books.",
+  "LOCK 2 — Something under the chair has the number SEVEN on it.",
+  "LOCK 3 — The door says: 'TWO codes are needed after the first lock.' Take TWO.",
+  "Tell Mikael what you find so you can combine the clues."
+ ],
+ stageInfo:{1:{title:"The Library Lock",hint:"Combine Mikael's hour (10) with Lizzy's red books (3). Enter 103.",answer:"103"},2:{title:"The Hidden Chair Lock",hint:"Combine the painting's corners (4) with the number under the chair (7). Enter 47.",answer:"47"},3:{title:"The Final Door",hint:"Combine the one dot (1) with the two codes instruction (2). Enter 12.",answer:"12"}},
+ chat:[],
+ updatedAt:new Date().toISOString()
+});
 
 const shelfStateKey=itemId=>`secret_shelf:item:${itemId}:latest`;
 async function putShelfState(env,c){
@@ -276,6 +299,7 @@ export default{async fetch(req,env){
  if(req.method==="GET"){
    if(u.searchParams.get("action")==="coop_chess"){const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess();return json({success:true,state});}
    if(u.searchParams.get("action")==="coop_escape"){const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();return json({success:true,state});}
+   if(u.searchParams.get("action")==="lizzy_messages"){const messages=await hqMessages(env);return json({success:true,messages:messages.filter(x=>x.status!=="handled").slice(-50)});}
    if(u.searchParams.get("action")==="hq_ping"){if(!hqOnly(req,env))return json({success:false,error:"Invalid HQ key"},401);return json({success:true});}
    if(u.searchParams.get("action")==="hq_letters"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,letters:await hqLetters(env)});}
    if(u.searchParams.get("action")==="hq_dashboard"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const letters=await hqLetters(env),msgs=await hqMessages(env),chess=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),activity=await arrKV(env,HQ_ACTIVITY_INDEX);return json({success:true,unreadLetters:letters.filter(x=>x.status==="unread").length,openQuestions:msgs.filter(x=>x.kind==="question"&&x.status==="open").length,activeGames:chess.status==="active"?1:0,activityCount:activity.length,latestLetter:letters[0]||null,chess});}
@@ -426,8 +450,32 @@ export default{async fetch(req,env){
  if(b.action==="lizzy_chess_move"){const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess();if(state.turn!=="w")return json({success:false,error:"It is Mikael's turn."},409);const next={...state,fen:S(b.fen,200),pgn:S(b.pgn,8000),turn:S(b.turn||"b",1),lastMove:S(b.lastMove,30),updatedAt:new Date().toISOString()};await env.LIZZY_CLAIMS.put(HQ_CHESS_KEY,JSON.stringify(next));await hqActivity(env,"♟️ Chess Move","Lizzy played a move.",{lastMove:next.lastMove});return json({success:true,state:next});}
  if(b.action==="lizzy_chess_help"){const text=S(b.text,500);if(!text)return json({success:false,error:"Request empty"},400);const r={id:hqId("help"),text,status:"open",createdAt:new Date().toISOString()};await env.LIZZY_CLAIMS.put(`hq:chesshelp:${r.id}`,JSON.stringify(r),{expirationTtl:86400});const ids=await arrKV(env,HQ_CHESS_HELP_INDEX);ids.push(r.id);await saveArr(env,HQ_CHESS_HELP_INDEX,ids);await hqActivity(env,"♟️ Chess Help",`Lizzy asked: ${text}`,{requestId:r.id});await tg(env,"sendMessage",{chat_id:env.TELEGRAM_CHAT_ID,text:`♟️ LIZZY NEEDS CHESS HELP\n\n${text}`});return json({success:true});}
  if(b.action==="lizzy_escape_chat"){const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Lizzy",text:S(b.text,600),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Chat","Lizzy sent a message in the escape room.");return json({success:true,state});}
+ if(b.action==="lizzy_escape_solve"){
+  const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();
+  if(state.status!=="active")return json({success:false,error:"The escape room has not been started yet."},409);
+  const stage=Math.max(1,Math.min(3,Number(b.stage||state.stage||1)));
+  const answer=S(b.answer,30).replace(/\s+/g,"");
+  const expected=state.stageInfo?.[stage]?.answer;
+  state.attempts=Number(state.attempts||0)+1;
+  if(answer===expected){
+    if(!Array.isArray(state.solvedStages))state.solvedStages=[];
+    if(!state.solvedStages.includes(stage))state.solvedStages.push(stage);
+    if(stage<3){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}
+    else {state.stage=3;state.status="solved";state.progress="🎉 YOU ESCAPED! Lizzy and Mikael solved all three locks together.";}
+    state.updatedAt=new Date().toISOString();
+    state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened!`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);
+    await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));
+    await hqActivity(env,"🔐 Escape Solved",`Lock ${stage} was solved.`,{stage});
+    return json({success:true,correct:true,state});
+  }
+  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`❌ Someone entered the wrong answer for Lock ${stage}. Talk to each other and try again.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();
+  await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));
+  return json({success:true,correct:false,state});
+ }
+ if(b.action==="escape_hint"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();const stage=Math.max(1,Math.min(3,Number(state.stage||1)));const hint=state.stageInfo?.[stage]?.hint||"Compare your clue with Lizzy's clue.";return json({success:true,hint});}
+
  if(b.action==="submit_letter"){const text=S(b.text,4000),subject=S(b.subject||"A letter for Mikael",120),from=S(b.from||"Lizzy",60);if(!text)return json({success:false,error:"Letter is empty"},400);const letter={id:hqId("letter"),subject,text,from,status:"unread",reply:null,createdAt:new Date().toISOString()};const xs=await hqLetters(env);xs.push(letter);await saveArr(env,HQ_LETTER_INDEX,xs);await hqActivity(env,"💌 New Letter",`Lizzy sent a letter: ${subject}`,{letterId:letter.id});await tg(env,"sendMessage",{chat_id:env.TELEGRAM_CHAT_ID,text:`💌 NEW LETTER FROM LIZZY\n\n${subject}\n\n${text.slice(0,1800)}\n\nOpen Mikael HQ to reply.`});return json({success:true,letter});}
- if(b.action==="reply_letter"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const lid=S(b.id,120),reply=S(b.reply,4000),xs=await hqLetters(env),l=xs.find(x=>x.id===lid);if(!l)return json({success:false,error:"Letter not found"},404);l.reply=reply;l.status="replied";l.repliedAt=new Date().toISOString();await saveArr(env,HQ_LETTER_INDEX,xs);await hqActivity(env,"🖤 Letter Reply",`Mikael replied to ${l.subject}`,{letterId:lid});return json({success:true,letter:l});}
+ if(b.action==="reply_letter"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const lid=S(b.id,120),reply=S(b.reply,4000),xs=await hqLetters(env),l=xs.find(x=>x.id===lid);if(!l)return json({success:false,error:"Letter not found"},404);l.reply=reply;l.status="replied";l.repliedAt=new Date().toISOString();await saveArr(env,HQ_LETTER_INDEX,xs);const msgs=await hqMessages(env);msgs.push({id:hqId("message"),kind:"letter_reply",text:`💌 Mikael replied to your letter “${l.subject}”:\n\n${reply}`,status:"pending",createdAt:new Date().toISOString(),letterId:lid});await saveArr(env,HQ_MESSAGE_INDEX,msgs);await hqActivity(env,"🖤 Letter Reply",`Mikael replied to ${l.subject}`,{letterId:lid});return json({success:true,letter:l});}
  if(b.action==="hq_message"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const text=S(b.text,1800);if(!text)return json({success:false,error:"Message is empty"},400);const m={id:hqId("message"),kind:"message",text,status:"pending",createdAt:new Date().toISOString()};const xs=await hqMessages(env);xs.push(m);await saveArr(env,HQ_MESSAGE_INDEX,xs);await hqActivity(env,"💌 Message Sent","Mikael left Lizzy a new message.",{messageId:m.id});return json({success:true,message:m});}
  if(b.action==="hq_question"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const text=S(b.text,1200);if(!text)return json({success:false,error:"Question is empty"},400);const m={id:hqId("question"),kind:"question",text,status:"open",createdAt:new Date().toISOString()};const xs=await hqMessages(env);xs.push(m);await saveArr(env,HQ_MESSAGE_INDEX,xs);await hqActivity(env,"❓ Question Sent","Mikael asked Lizzy a question.",{messageId:m.id});return json({success:true,message:m});}
  if(b.action==="lizzy_message_seen"){const xs=await hqMessages(env),m=xs.find(x=>x.id===S(b.id,120));if(m)m.status="seen";await saveArr(env,HQ_MESSAGE_INDEX,xs);return json({success:true});}
@@ -436,6 +484,16 @@ export default{async fetch(req,env){
  if(b.action==="chess_help"){const text=S(b.text,500);if(!text)return json({success:false,error:"Request empty"},400);const r={id:hqId("help"),text,status:"open",createdAt:new Date().toISOString()};await env.LIZZY_CLAIMS.put(`hq:chesshelp:${r.id}`,JSON.stringify(r),{expirationTtl:86400});const ids=await arrKV(env,HQ_CHESS_HELP_INDEX);ids.push(r.id);await saveArr(env,HQ_CHESS_HELP_INDEX,ids);await hqActivity(env,"♟️ Chess Help",`Lizzy asked: ${text}`,{requestId:r.id});await tg(env,"sendMessage",{chat_id:env.TELEGRAM_CHAT_ID,text:`♟️ LIZZY NEEDS CHESS HELP\n\n${text}`});return json({success:true,request:r});}
  if(b.action==="resolve_chess_help"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const lid=S(b.id,120),r=await env.LIZZY_CLAIMS.get(`hq:chesshelp:${lid}`,{type:"json"});if(r){r.status="handled";await env.LIZZY_CLAIMS.put(`hq:chesshelp:${lid}`,JSON.stringify(r),{expirationTtl:86400})}return json({success:true});}
  if(b.action==="send_chess_hint"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const text=S(b.text,1000);if(!text)return json({success:false,error:"Hint empty"},400);const m={id:hqId("message"),kind:"message",text:`🎓 Mikael's chess tip: ${text}`,status:"pending",createdAt:new Date().toISOString()};const xs=await hqMessages(env);xs.push(m);await saveArr(env,HQ_MESSAGE_INDEX,xs);await hqActivity(env,"🎓 Chess Hint","Mikael sent Lizzy a chess tip.");return json({success:true});}
+ if(b.action==="hq_escape_solve"){
+  if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);
+  const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();
+  if(state.status!=="active")return json({success:false,error:"Start the room first."},409);
+  const stage=Math.max(1,Math.min(3,Number(b.stage||state.stage||1)));const answer=S(b.answer,30).replace(/\s+/g,"");const expected=state.stageInfo?.[stage]?.answer;state.attempts=Number(state.attempts||0)+1;
+  if(answer!==expected)return json({success:true,correct:false,state});
+  if(!Array.isArray(state.solvedStages))state.solvedStages=[];if(!state.solvedStages.includes(stage))state.solvedStages.push(stage);
+  if(stage<3){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}else{state.status="solved";state.progress="🎉 YOU ESCAPED! Lizzy and Mikael solved all three locks together.";}
+  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened by Mikael.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Mikael opened Lock ${stage}.`,{stage});return json({success:true,correct:true,state});
+ }
  if(b.action==="escape_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultEscape();state.status="active";state.startedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Room","Mikael started the two-player escape room.");return json({success:true,state});}
  if(b.action==="escape_chat"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Mikael",text:S(b.text,600),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));return json({success:true,state});}
 

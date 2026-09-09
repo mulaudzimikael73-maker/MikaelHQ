@@ -77,8 +77,8 @@
     <section id="escape" class="view hidden">
       <div class="section-intro"><div><span class="pill">CO-OP</span><h2>🔐 Escape Room</h2><p>Start with a two-player prototype: Lizzy and Mikael receive different clues and must communicate.</p></div><button class="primary" id="startEscape">Start / Reset Room</button></div>
       <div class="escape-grid">
-        <div class="card"><h3>🗺️ Mikael's clues</h3><div id="mikaelClues" class="clues"></div></div>
-        <div class="card"><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div>
+        <div class="card"><h3>🗺️ Mikael's clues</h3><p class="muted">These are your clues. Lizzy has the other half.</p><div id="mikaelClues" class="clues"></div></div>
+        <div class="card"><h3>🔢 Current lock</h3><div id="escapePuzzle" class="puzzle-card">Waiting…</div><div class="chat-row"><input id="hqEscapeAnswer" inputmode="numeric" placeholder="Combined answer"><button class="primary" id="hqEscapeSolve">Unlock</button></div><div id="hqEscapeResult" class="muted"></div><hr><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div>
       </div>
     </section>
 

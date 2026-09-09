@@ -115,9 +115,19 @@ $("resetChess").onclick=async()=>{if(!confirm("Start a new chess game?"))return;
 $("sendHint").onclick=async()=>{const text=$("hintText").value.trim();if(!text)return;try{await api("send_chess_hint",{text});$("hintText").value="";toast("Hint sent to Lizzy 🎓")}catch(e){toast(e.message,false)}};
 
 async function loadEscape(){
-  try{const d=await api("escape_state");$("mikaelClues").innerHTML=(d.state?.mikaelClues||[]).map(c=>`<div class="clue">${esc(c)}</div>`).join("");$("escapeStatus").innerHTML=`<p><b>${esc(d.state?.status||"Not started")}</b></p><p class="muted">${esc(d.state?.progress||"Waiting for both agents.")}</p>`;$("roomChat").innerHTML=(d.state?.chat||[]).map(x=>`<div class="chat"><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join("");$("roomChat").scrollTop=$("roomChat").scrollHeight}
-  catch(e){$("escapeStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}
+  try{const d=await api("escape_state"),s=d.state||{},stage=Number(s.stage||1),info=s.stageInfo?.[stage];
+    $("mikaelClues").innerHTML=(s.mikaelClues||[]).map(c=>`<div class="clue">${esc(c)}</div>`).join("");
+    $("escapeStatus").innerHTML=`<p><b>${esc(s.status||"ready")}</b></p><p class="muted">${esc(s.progress||"Waiting for both agents.")}</p>`;
+    $("escapePuzzle").dataset.stage=String(stage);
+    $("escapePuzzle").innerHTML=s.status==="solved"?`<b>🎉 The door is open.</b><br>You escaped together. ❤️`:(s.status!=="active"?`<b>🔐 Room not started.</b><br>Press Start / Reset Room to begin.`:`<b>Lock ${stage}: ${esc(info?.title||"Current lock")}</b><br>Compare your clue with Lizzy's and enter the combined answer.`);
+    $("hqEscapeAnswer").disabled=s.status!=="active";$("hqEscapeSolve").disabled=s.status!=="active";
+    $("roomChat").innerHTML=(s.chat||[]).map(x=>`<div class="chat"><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join("");$("roomChat").scrollTop=$("roomChat").scrollHeight;
+  }catch(e){$("escapeStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}
 }
+async function solveEscapeHQ(){const answer=$("hqEscapeAnswer").value.trim();if(!answer)return;try{const d=await api("hq_escape_solve",{stage:Number($("escapePuzzle").dataset.stage||1),answer});$("hqEscapeAnswer").value="";$("hqEscapeResult").textContent=d.correct?"🔓 Correct — lock opened.":"❌ Not quite. Talk to Lizzy and combine both clues.";loadEscape()}catch(e){$("hqEscapeResult").textContent=e.message}}
+$("hqEscapeSolve").onclick=solveEscapeHQ;
+$("hqEscapeAnswer").onkeydown=e=>{if(e.key==="Enter")solveEscapeHQ()};
+
 $("startEscape").onclick=async()=>{try{await api("escape_start");loadEscape();toast("Escape room started 🔐")}catch(e){toast(e.message,false)}};
 $("sendChat").onclick=async()=>{const t=$("chatInput").value.trim();if(!t)return;try{await api("escape_chat",{text:t});$("chatInput").value="";loadEscape()}catch(e){toast(e.message,false)}};
 $("chatInput").onkeydown=e=>{if(e.key==="Enter")$("sendChat").click()};
