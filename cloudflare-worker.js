@@ -77,13 +77,14 @@ const RAP_ROUNDS=[
 ];
 const defaultRap=()=>({id:"rap-main",status:"ready",round:1,phase:"writing",submissions:{lizzy:null,mikael:null},scores:{},roundWinners:[],history:[],chat:[],updatedAt:new Date().toISOString()});
 const rapWords=t=>String(t||"").toLowerCase().match(/[a-z0-9']+/g)||[];
-const rapScore=(text,round,opponent="")=>{
+const RAP_JUDGE_MODEL="gpt-5-mini";
+function fallbackRapScore(text,round,opponent="",audio={}){
  const raw=String(text||"").trim(), w=rapWords(raw), unique=new Set(w);
- if(!w.length)return {total:0,relevance:0,creativity:0,humour:0,wordplay:0,rhyme:0,impact:0,feedback:"No verse submitted."};
+ if(!w.length)return {total:0,relevance:0,creativity:0,humour:0,wordplay:0,rhyme:0,impact:0,delivery:0,feedback:"No verse submitted."};
  const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean), ends=lines.map(x=>{const a=rapWords(x);return a[a.length-1]||""}).filter(Boolean);
  let rhyme=0; for(let i=1;i<ends.length;i++){const a=ends[i-1],b=ends[i];if(a===b||a.slice(-3)===b.slice(-3)||a.slice(-2)===b.slice(-2))rhyme++;}
  const rhymeScore=Math.min(15,Math.round((rhyme/Math.max(1,ends.length-1))*15)+Math.min(4,Math.floor(lines.length/2)));
- const p=RAP_ROUNDS[round-1].prompt.toLowerCase(), pw=rapWords(p);
+ const p=(RAP_ROUNDS[round-1]?.prompt||"").toLowerCase(), pw=rapWords(p);
  const promptHits=pw.filter(x=>x.length>3&&w.includes(x)).length;
  const required=round===2?["bowling","attitude","champion"]:[];
  const requiredHits=required.filter(x=>w.includes(x)).length;
@@ -92,31 +93,66 @@ const rapScore=(text,round,opponent="")=>{
  const humour=Math.min(15,round===3?7+Math.min(8,(raw.match(/\b(lol|haha|funny|roast|burn|clown|attitude|perfect|humble|win|lose|better)\b/gi)||[]).length):7+Math.min(5,(raw.match(/[!?]/g)||[]).length));
  const wordplay=Math.min(15,5+Math.min(7,Math.floor(unique.size/5))+Math.min(3,(raw.match(/\b(and|but|because|like|than|never|always)\b/gi)||[]).length));
  const impact=Math.min(15,6+Math.min(6,Math.floor(w.length/8))+Math.min(3,Math.floor(lines.length/2)));
- let total=Math.min(100,relevance+creativity+humour+wordplay+rhymeScore+impact);
- let feedback=round===3?(total>=80?"Sharp roast with strong punchlines.":total>=65?"Good roast energy; a few bars could hit harder.":"Keep the roast clever and build a stronger punchline."):round===5?(total>=85?"Final-round energy. Memorable finish.":total>=70?"Solid final verse with room for a bigger finish.":"Build the ending around one unforgettable bar."):total>=80?"Strong response with good structure and energy.":total>=65?"Good effort. Sharpen the wording and punchlines.":"Focus more tightly on the round's challenge.";
- return {total,relevance,creativity,humour,wordplay,rhyme:rhymeScore,impact,feedback};
-};
+ const delivery=Math.max(0,Math.min(15,Math.round(7+(Number(audio?.rms||0)*10)+(Number(audio?.speechRate||0)>2?3:0))));
+ const total=Math.min(100,relevance+creativity+humour+wordplay+rhymeScore+impact+delivery);
+ return {total,relevance,creativity,humour,wordplay,rhyme:rhymeScore,impact,delivery,feedback:total>=85?"Strong bars and confident delivery.":total>=70?"Solid round with good energy; sharpen the punchlines and delivery.":"Build a clearer punchline, stronger structure and more confident delivery."};
+}
+async function aiRapJudge(env,round,lizzy,mikael){
+ const key=String(env?.OPENAI_API_KEY||"");
+ if(!key)return null;
+ const r=RAP_ROUNDS[round-1]||{};
+ const prompt=`You are the neutral judge of a playful two-player rap battle between Lizzy and Mikael. Do not favour either person. Judge the actual competition, not the names. The round challenge is: ${r.title} — ${r.prompt}\n\nEach player first wrote a verse, then performed it aloud. The written verse is authoritative for intended lyrics; the transcript is what the player actually said. Audio metrics are evidence about delivery only. Reward cleverness, relevance, rhyme/wordplay, humour, punchlines, and delivery. Do not punish accent, gender, microphone quality, background noise, or transcription mistakes that are clearly caused by speech recognition. Compare both players fairly. Return JSON only with scores out of the category maximums: relevance 20, creativity 20, humour 15, wordplay 15, rhyme 15, delivery 15, total 100, plus a short feedback sentence for each player and winner ('lizzy','mikael','tie').\n\nLIZZY WRITTEN:\n${lizzy.text}\nLIZZY TRANSCRIPT:\n${lizzy.audio?.transcript||""}\nLIZZY AUDIO METRICS:\n${JSON.stringify(lizzy.audio?.metrics||{})}\n\nMIKAEL WRITTEN:\n${mikael.text}\nMIKAEL TRANSCRIPT:\n${mikael.audio?.transcript||""}\nMIKAEL AUDIO METRICS:\n${JSON.stringify(mikael.audio?.metrics||{})}`;
+ try{
+   const judgeSchema={type:"object",properties:{lizzy:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},delivery:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","delivery","total","feedback"],additionalProperties:false},mikael:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},delivery:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","delivery","total","feedback"],additionalProperties:false},winner:{type:"string",enum:["lizzy","mikael","tie"]}},required:["lizzy","mikael","winner"],additionalProperties:false};
+   const resp=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${key}`},body:JSON.stringify({model:RAP_JUDGE_MODEL,input:prompt,store:false,text:{format:{type:"json_schema",name:"rap_judgement",strict:true,schema:judgeSchema}}})});
+   if(!resp.ok)throw new Error(`OpenAI judge HTTP ${resp.status}`);
+   const data=await resp.json();
+   const out=data.output_text||data.output?.flatMap(x=>x.content||[]).find(x=>x.type==="output_text")?.text;
+   if(!out)throw new Error("No judge output");
+   return JSON.parse(out);
+ }catch(e){return null;}
+}
+async function transcribeRapAudio(env,base64,mime,text){
+ const key=String(env?.OPENAI_API_KEY||""); if(!key)return {error:"Voice judging is not configured yet. Add OPENAI_API_KEY to the Worker secrets."};
+ const clean=String(base64||"").replace(/^data:[^,]+,/,""); if(!clean)return {error:"No recording received."};
+ let bytes; try{bytes=Uint8Array.from(atob(clean),c=>c.charCodeAt(0));}catch{return {error:"Recording data was invalid."};}
+ if(bytes.byteLength>8*1024*1024)return {error:"Recording is too large. Keep each performance under 45 seconds."};
+ const type=String(mime||"audio/webm").split(";")[0]||"audio/webm";
+ const ext=type.includes("mp4")||type.includes("m4a")?"mp4":type.includes("ogg")?"ogg":"webm";
+ const form=new FormData();form.append("file",new File([bytes],`rap.${ext}`,{type}),`rap.${ext}`);form.append("model","gpt-4o-mini-transcribe");form.append("language","en");form.append("prompt",`This is a playful rap battle performance. The intended written verse is:\n${S(text,1600)}`);
+ const r=await fetch("https://api.openai.com/v1/audio/transcriptions",{method:"POST",headers:{authorization:`Bearer ${key}`},body:form});
+ if(!r.ok){let msg="Transcription failed.";try{msg=(await r.json()).error?.message||msg}catch{}return {error:msg};}
+ const d=await r.json();return {transcript:S(d.text||"",2000)};
+}
 async function rapState(env){return await env.LIZZY_CLAIMS.get(HQ_RAP_KEY,{type:"json"})||defaultRap();}
 async function putRap(env,state){state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_RAP_KEY,JSON.stringify(state));}
-async function rapSubmit(env,player,text){
+async function rapSubmitText(env,player,text){
  const state=await rapState(env); if(state.status!=="active")return {error:"The rap battle has not started yet."};
- if(state.phase!=="writing")return {error:"This round has already been judged."};
+ if(state.phase!=="writing"&&state.phase!=="recording")return {error:"This round is no longer accepting verses."};
  const clean=S(text,1600); if(!clean)return {error:"Write a verse first."};
- state.submissions=state.submissions||{}; if(state.submissions[player])return {error:"You already submitted this round."};
- state.submissions[player]={text:clean,submittedAt:new Date().toISOString()};
- if(state.submissions.lizzy&&state.submissions.mikael){
-   const a=rapScore(state.submissions.lizzy.text,state.round,state.submissions.mikael.text), b=rapScore(state.submissions.mikael.text,state.round,state.submissions.lizzy.text);
-   let winner=a.total===b.total?"tie":(a.total>b.total?"lizzy":"mikael");
-   state.scores=state.scores||{};state.scores[state.round]={lizzy:a,mikael:b};
-   state.roundWinners=Array.isArray(state.roundWinners)?state.roundWinners:[];state.roundWinners.push(winner);
-   state.history=Array.isArray(state.history)?state.history:[];state.history.push({round:state.round,title:RAP_ROUNDS[state.round-1].title,prompt:RAP_ROUNDS[state.round-1].prompt,submissions:state.submissions,scores:{lizzy:a,mikael:b},winner});
+ state.submissions=state.submissions||{}; if(state.submissions[player]?.text)return {error:"You already submitted your written verse."};
+ state.submissions[player]={text:clean,submittedAt:new Date().toISOString(),audio:null}; state.phase="recording";
+ await putRap(env,state);return {state};
+}
+async function rapSubmitAudio(env,player,base64,mime,metrics){
+ const state=await rapState(env); if(state.status!=="active")return {error:"The rap battle has not started yet."};
+ const sub=state.submissions?.[player]; if(!sub?.text)return {error:"Submit your written verse first."};
+ if(sub.audio)return {error:"Your recording is already submitted."};
+ const tr=await transcribeRapAudio(env,base64,mime,sub.text); if(tr.error)return tr;
+ sub.audio={transcript:tr.transcript,metrics:{duration:Number(metrics?.duration||0),rms:Number(metrics?.rms||0),peak:Number(metrics?.peak||0),silenceRatio:Number(metrics?.silenceRatio||0),wordCount:rapWords(tr.transcript).length,speechRate:Number(metrics?.duration||0)?rapWords(tr.transcript).length/Number(metrics.duration):0},submittedAt:new Date().toISOString()};
+ if(state.submissions.lizzy?.audio&&state.submissions.mikael?.audio){
+   let judge=await aiRapJudge(env,state.round,state.submissions.lizzy,state.submissions.mikael);
+   if(!judge){const a=fallbackRapScore(state.submissions.lizzy.text,state.round,state.submissions.mikael.text,state.submissions.lizzy.audio.metrics),b=fallbackRapScore(state.submissions.mikael.text,state.round,state.submissions.lizzy.text,state.submissions.mikael.audio.metrics);judge={lizzy:a,mikael:b,winner:a.total===b.total?"tie":a.total>b.total?"lizzy":"mikael"};}
+   state.scores=state.scores||{};state.scores[state.round]={lizzy:judge.lizzy,mikael:judge.mikael,judge:"AI + audio transcription"};
+   state.roundWinners=Array.isArray(state.roundWinners)?state.roundWinners:[];state.roundWinners.push(judge.winner);
+   state.history=Array.isArray(state.history)?state.history:[];state.history.push({round:state.round,title:RAP_ROUNDS[state.round-1].title,prompt:RAP_ROUNDS[state.round-1].prompt,submissions:state.submissions,scores:state.scores[state.round],winner:judge.winner});
    state.phase="revealed";
  }
  await putRap(env,state);return {state};
 }
 async function rapNext(env){
  const state=await rapState(env);if(state.status!=="active")return {error:"Battle is not active."};
- if(state.phase!=="revealed")return {error:"Both verses must be submitted before the next round."};
+ if(state.phase!=="revealed")return {error:"Both players must submit their written verse and recording before the next round."};
  if(state.round>=RAP_ROUNDS.length){state.status="solved";state.phase="finished";await putRap(env,state);return {state};}
  state.round++;state.phase="writing";state.submissions={lizzy:null,mikael:null};await putRap(env,state);return {state};
 }
@@ -553,8 +589,10 @@ export default{async fetch(req,env){
   state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened by Mikael.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Mikael opened Lock ${stage}.`,{stage});return json({success:true,correct:true,state});
  }
  if(b.action==="rap_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultRap();state.status="active";state.startedAt=new Date().toISOString();await putRap(env,state);await hqActivity(env,"🎤 Rap Battle","Mikael started a new Lizzy × Mikael rap battle.");return json({success:true,state,rounds:RAP_ROUNDS});}
- if(b.action==="hq_rap_submit"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapSubmit(env,"mikael",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Mikael submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
- if(b.action==="lizzy_rap_submit"){const r=await rapSubmit(env,"lizzy",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Lizzy submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="hq_rap_submit"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapSubmitText(env,"mikael",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Mikael submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="lizzy_rap_submit"){const r=await rapSubmitText(env,"lizzy",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Lizzy submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="hq_rap_audio"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapSubmitAudio(env,"mikael",b.audioBase64,b.mime,b.metrics||{});if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged from lyrics + performance.`:"Mikael submitted his recording.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="lizzy_rap_audio"){const r=await rapSubmitAudio(env,"lizzy",b.audioBase64,b.mime,b.metrics||{});if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="hq_rap_next"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="lizzy_rap_next"){const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="escape_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultEscape();state.status="active";state.startedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Room","Mikael started the two-player escape room.");return json({success:true,state});}

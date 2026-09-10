@@ -85,13 +85,15 @@
 
 
     <section id="rap" class="view hidden">
-      <div class="section-intro"><div><span class="pill">2 PLAYER • LIVE JUDGING</span><h2>🎤 Mikael × Lizzy Rap Battle</h2><p>Write your bars. Lizzy writes hers. The website judges every round automatically.</p></div><div class="rap-score" id="hqRapScore">0 — 0</div></div>
-      <div class="rap-hero card"><div><b id="hqRapRound">Round 1 — Warm-Up</b><p id="hqRapPrompt">Loading challenge…</p></div><button class="primary" id="startRap">Start / Reset Battle</button></div>
+      <div class="hq-rap-arena"><div><span class="pill">🎤 MIKAEL HQ • RAP ARENA</span><h2>🔥 LIZZY <span>VS</span> MIKAEL 🔥</h2><p>Write your verse first. After you submit it, the mic opens. The AI judges the written bars against what you actually performed.</p></div><button class="primary arena-start" id="startRap">🎤 Start / Reset Battle</button></div>
+      <div class="rap-score arena-score"><div>🩷 LIZZY <b id="hqLizzyScore">0</b></div><div><strong id="hqRapRound">ROUND 1</strong><small>LIVE BATTLE</small></div><div>🖤 MIKAEL <b id="hqMikaelScore">0</b></div></div>
+      <div class="rap-stage"><div class="stage-player pink"><span>🩷</span><b>LIZZY</b></div><div class="stage-vs">VS</div><div class="stage-player black"><span>🖤</span><b>MIKAEL</b></div></div>
+      <div class="rap-hero card"><div><b id="hqRapTitle">Round 1 — Warm-Up</b><p id="hqRapPrompt">Loading challenge…</p></div></div>
       <div class="rap-grid">
-        <div class="card rap-write"><h3>🖤 Your verse</h3><textarea id="hqRapText" maxlength="1600" placeholder="Write your bars here…"></textarea><div class="rap-meta"><span id="hqRapCount">0 / 1600</span><button class="primary" id="hqRapSubmit">Submit Verse</button></div><div id="hqRapResult" class="muted"></div></div>
-        <div class="card"><h3>📡 Battle status</h3><div id="hqRapStatus" class="rap-status">Waiting…</div><hr><div id="hqRapReveal" class="rap-reveal"></div><button class="primary hidden" id="hqRapNext">Next Round →</button></div>
+        <div class="card rap-write arena-card"><div class="mic-header"><h3>📝 Your bars</h3><span id="hqRapPhaseBadge">STEP 1 • WRITE</span></div><textarea id="hqRapText" maxlength="1600" placeholder="Write your verse here…"></textarea><div class="rap-meta"><span id="hqRapCount">0 / 1600</span><button class="primary arena-button" id="hqRapSubmit">1️⃣ Submit Written Verse</button></div><div id="hqRapResult" class="muted"></div><div id="hqRapRecorder" class="recorder hidden"><div class="recorder-top"><span id="hqRecordLight">●</span><b id="hqRecordStatus">READY TO RECORD</b><span id="hqRecordTimer">00:00 / 00:45</span></div><div class="wave" id="hqWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="record-actions"><button class="arena-button record" id="hqRapRecord">🎙️ Start Recording</button><button class="arena-button stop hidden" id="hqRapStop">⏹ Stop</button></div><audio id="hqRapPlayback" class="hidden" controls></audio><button class="arena-button submit-audio hidden" id="hqRapSubmitAudio">🔥 Submit Performance</button><div id="hqRapAudioResult" class="muted"></div></div></div>
+        <div class="card arena-card"><h3>📡 Battle Feed</h3><div id="hqRapStatus" class="rap-status">Waiting…</div><hr><div id="hqRapReveal" class="rap-reveal"></div><button class="primary arena-button hidden" id="hqRapNext">Next Round →</button></div>
       </div>
-      <div class="card rap-history-card"><h3>🏆 Battle history</h3><div id="hqRapHistory" class="rap-history"></div></div>
+      <div class="card rap-history-card arena-card"><h3>🏆 Battle History</h3><div id="hqRapHistory" class="rap-history"></div></div>
     </section>
 
     <section id="create" class="view hidden">

@@ -9,11 +9,15 @@
 </section>
 
 <section id="rap" class="tab hidden">
-<div class="intro"><div><span class="pill">TWO PLAYER • LIVE JUDGING</span><h2>🎤 Lizzy × Mikael Rap Arena</h2><p>The website is the judge. You write your verse, Mikael writes his, and the system decides who wins each round.</p></div><div id="rapStatus" class="turn">Waiting…</div></div>
-<div class="rap-scorebar"><div>🩷 Lizzy <b id="lizzyScore">0</b></div><div id="rapRound">Round 1</div><div>🖤 Mikael <b id="mikaelScore">0</b></div></div>
-<div class="rap-prompt panel"><span class="pill">CURRENT CHALLENGE</span><h3 id="rapTitle">Warm-Up</h3><p id="rapPrompt">Waiting for Mikael to start the battle…</p></div>
-<div class="game-layout rap-layout"><div class="panel rap-write"><h3>🩷 Your verse</h3><textarea id="rapText" maxlength="1600" placeholder="Write your bars…"></textarea><div class="rap-meta"><span id="rapCount">0 / 1600</span><button class="send" id="rapSubmit">Submit Verse</button></div><div id="rapResult" class="hint"></div></div><div class="panel"><h3>🎤 Battle status</h3><div id="rapReveal" class="rap-reveal">Waiting for both verses…</div><button class="send hidden" id="rapNext">Next Round →</button></div></div>
-<div class="panel"><h3>🏆 Round history</h3><div id="rapHistory" class="rap-history"></div></div>
+<div class="rap-arena-head"><div><span class="pill">🎤 THE LIZZYOS RAP ARENA</span><h2>🔥 LIZZY <span>VS</span> MIKAEL 🔥</h2><p>Write it. Submit it. Then say it into the mic. The AI judge scores your bars <b>and</b> your performance.</p></div><div class="arena-lights"><i></i><i></i><i></i></div></div>
+<div class="rap-scorebar arena-score"><div>🩷 LIZZY <b id="lizzyScore">0</b></div><div><strong id="rapRound">ROUND 1 / 5</strong><small>LIVE BATTLE</small></div><div>🖤 MIKAEL <b id="mikaelScore">0</b></div></div>
+<div class="rap-stage"><div class="stage-player pink"><span>🩷</span><b>LIZZY</b></div><div class="stage-vs">VS</div><div class="stage-player black"><span>🖤</span><b>MIKAEL</b></div></div>
+<div class="rap-prompt arena-card"><span class="pill">CURRENT CHALLENGE</span><h3 id="rapTitle">Warm-Up</h3><p id="rapPrompt">Waiting for Mikael to start the battle…</p></div>
+<div class="game-layout rap-layout">
+ <div class="panel rap-write arena-card"><div class="mic-header"><h3>📝 Write your bars</h3><span id="rapPhaseBadge">STEP 1 • WRITE</span></div><textarea id="rapText" maxlength="1600" placeholder="Write your verse here... Make it clever. Make it yours. 🔥"></textarea><div class="rap-meta"><span id="rapCount">0 / 1600</span><button class="send arena-button" id="rapSubmit">1️⃣ Submit Written Verse</button></div><div id="rapResult" class="hint"></div><div id="rapRecorder" class="recorder hidden"><div class="recorder-top"><span id="recordLight">●</span><b id="recordStatus">READY TO RECORD</b><span id="recordTimer">00:00 / 00:45</span></div><div class="wave" id="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="record-actions"><button class="arena-button record" id="rapRecord">🎙️ Start Recording</button><button class="arena-button stop hidden" id="rapStop">⏹ Stop</button></div><audio id="rapPlayback" class="hidden" controls></audio><button class="arena-button submit-audio hidden" id="rapSubmitAudio">🔥 Submit Performance</button><div id="rapAudioResult" class="hint"></div></div></div>
+ <div class="panel arena-card"><h3>🎤 Battle Feed</h3><div id="rapReveal" class="rap-reveal">Waiting for both players…</div><button class="send arena-button hidden" id="rapNext">Next Round →</button></div>
+</div>
+<div class="panel arena-card"><h3>🏆 Battle History</h3><div id="rapHistory" class="rap-history"></div></div>
 </section>
 
 <section id="escape" class="tab hidden">

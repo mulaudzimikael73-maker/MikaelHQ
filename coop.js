@@ -36,31 +36,51 @@ $("chatSend").onclick=async()=>{const t=$("chatInput").value.trim();if(!t)return
 $("chatInput").onkeydown=e=>{if(e.key==="Enter")$("chatSend").click()};
 
 
-let rapState=null;
+let rapState=null,rapRecorder=null,rapChunks=[],rapStream=null,rapRecordStart=0,rapTimer=null,rapBlob=null;
 function rapTotals(s){let l=0,m=0;Object.values(s.scores||{}).forEach(x=>{l+=Number(x.lizzy?.total||0);m+=Number(x.mikael?.total||0)});return [l,m]}
+function rapPhaseUI(s,mine){
+ const badge=$("rapPhaseBadge"); if(!badge)return;
+ if(s.status!=="active")badge.textContent="BATTLE NOT STARTED";else if(!mine)badge.textContent="STEP 1 • WRITE";else if(!mine.audio)badge.textContent="STEP 2 • PERFORM";else badge.textContent="STEP 3 • JUDGING";
+}
 function renderRap(s,rounds){
- rapState=s; const round=Number(s.round||1), info=(rounds||[])[round-1]||{}; const [ls,ms]=rapTotals(s);
- $("lizzyScore").textContent=ls;$("mikaelScore").textContent=ms;$("rapRound").textContent=s.status==="solved"?"🏆 Battle complete":`Round ${round} / 5`;
- $("rapTitle").textContent=info.title||"Rap Battle";$("rapPrompt").textContent=info.prompt||"";
- $("rapStatus").textContent=s.status!=="active"?"Waiting for Mikael to start":s.phase==="writing"?(s.submissions?.lizzy?"🕒 Verse submitted — waiting for Mikael…":"🎤 Write your verse"):(s.phase==="revealed"?"⚔️ Round judged":"🏆 Finished");
- const mine=s.submissions?.lizzy; $("rapSubmit").disabled=s.status!=="active"||s.phase!=="writing"||!!mine;
+ rapState=s; const round=Number(s.round||1), info=(rounds||[])[round-1]||{}; const [ls,ms]=rapTotals(s), mine=s.submissions?.lizzy;
+ $("lizzyScore").textContent=ls;$('mikaelScore').textContent=ms;$('rapRound').innerHTML=s.status==="solved"?"🏆 BATTLE COMPLETE":`ROUND ${round} / 5 <small>LIVE</small>`;
+ $("rapTitle").textContent=info.title||"Rap Battle";$('rapPrompt').textContent=info.prompt||"";
+ $("rapStatus").textContent=s.status!=="active"?"Waiting for Mikael to start":!mine?"🎤 Write your verse":!mine.audio?"🔴 Your verse is locked. Now perform it!":(s.phase==="revealed"?"⚖️ AI judge has scored the round":"🕒 Performance submitted — waiting for Mikael…");
+ rapPhaseUI(s,mine);
+ $("rapSubmit").disabled=s.status!=="active"||!!mine;
+ $("rapText").disabled=s.status!=="active"||!!mine;
+ const rec=$("rapRecorder");rec.classList.toggle("hidden",!(s.status==="active"&&!!mine&&!mine.audio));
+ if(mine?.audio){$("rapAudioResult").textContent="🎧 Performance submitted. Waiting for the other battler…";$("rapRecord").disabled=true;$("rapSubmitAudio").classList.add("hidden");}
  if(s.phase==="revealed"){
    const sc=s.scores?.[round]||{}, w=s.roundWinners?.[round-1];
    const winner=w==="lizzy"?"🩷 LIZZY WINS THE ROUND":w==="mikael"?"🖤 MIKAEL WINS THE ROUND":"🤝 ROUND TIED";
-   $("rapReveal").innerHTML=`<div class="winner">${winner}</div><div class="verses"><article><b>🩷 Lizzy — ${sc.lizzy?.total||0}/100</b><p>${esc(s.history?.[round-1]?.submissions?.lizzy?.text||"")}</p><small>${esc(sc.lizzy?.feedback||"")}</small></article><article><b>🖤 Mikael — ${sc.mikael?.total||0}/100</b><p>${esc(s.history?.[round-1]?.submissions?.mikael?.text||"")}</p><small>${esc(sc.mikael?.feedback||"")}</small></article></div>`;
+   const hist=s.history?.[round-1]||{}, lsx=hist.submissions?.lizzy, msx=hist.submissions?.mikael;
+   $("rapReveal").innerHTML=`<div class="winner">${winner}</div><div class="ai-verdict">🤖 AI + AUDIO JUDGING</div><div class="verses"><article><b>🩷 Lizzy — ${sc.lizzy?.total||0}/100</b><p>${esc(lsx?.text||"")}</p><small>${esc(sc.lizzy?.feedback||"")}</small></article><article><b>🖤 Mikael — ${sc.mikael?.total||0}/100</b><p>${esc(msx?.text||"")}</p><small>${esc(sc.mikael?.feedback||"")}</small></article></div>`;
    $("rapNext").classList.remove("hidden");$("rapNext").textContent=round>=5?"🏆 Finish Battle":"Next Round →";
- } else {$("rapReveal").innerHTML=s.phase==="writing"?`<div class="waiting">${mine?"Your verse is locked in. Waiting for Mikael's verse…":"The judge is waiting for both verses."}</div>`:`<div class="waiting">The battle is ready.</div>`;$("rapNext").classList.add("hidden")}
- $("rapText").disabled=s.status!=="active"||s.phase!=="writing"||!!mine;if(mine)$("rapText").value="";
+ } else {$("rapReveal").innerHTML=s.status==="active"&&mine&&!mine.audio?`<div class="waiting">🎙️ Your written verse is locked. Perform it into the mic to continue.</div>`:`<div class="waiting">${mine?"🔒 Your verse is locked. Waiting for Mikael…":"The arena is ready. Waiting for both verses."}</div>`;$("rapNext").classList.add("hidden")}
+ if(!mine)$('rapText').value="";
  $("rapHistory").innerHTML=(s.history||[]).slice().reverse().map(h=>`<div class="history-row"><b>Round ${h.round} — ${esc(h.title)}</b><span>${h.winner==="lizzy"?"🩷 Lizzy":h.winner==="mikael"?"🖤 Mikael":"🤝 Tie"} · ${h.scores.lizzy.total}–${h.scores.mikael.total}</span></div>`).join("")||"<span class='empty'>No rounds judged yet.</span>";
 }
+async function blobMetrics(blob,transcript=""){
+ const ab=await blob.arrayBuffer(),ctx=new (window.AudioContext||window.webkitAudioContext)(),buf=await ctx.decodeAudioData(ab.slice(0));let sum=0,count=0,peak=0,silent=0,total=0;
+ for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i++){const v=Math.abs(d[i]);sum+=v*v;count++;if(v>peak)peak=v;if(v<0.015)silent++;total++;}}
+ const duration=buf.duration||0, rms=Math.sqrt(sum/Math.max(1,count)), silenceRatio=silent/Math.max(1,total), words=(String(transcript).match(/\b\w+\b/g)||[]).length;
+ ctx.close();return {duration,rms,peak,silenceRatio,speechRate:duration?words/duration:0};
+}
+function dataUrl(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)})}
+function setupRecorder(){
+ $("rapRecord").onclick=async()=>{try{rapStream=await navigator.mediaDevices.getUserMedia({audio:true});const type=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":(MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm");rapRecorder=new MediaRecorder(rapStream,{mimeType:type});rapChunks=[];rapRecorder.ondataavailable=e=>{if(e.data.size)rapChunks.push(e.data)};rapRecorder.onstop=async()=>{rapBlob=new Blob(rapChunks,{type});$("rapPlayback").src=URL.createObjectURL(rapBlob);$("rapPlayback").classList.remove("hidden");$("rapSubmitAudio").classList.remove("hidden");$("recordStatus").textContent="PERFORMANCE READY";$("rapRecord").classList.remove("hidden");$("rapStop").classList.add("hidden");rapStream?.getTracks().forEach(t=>t.stop());};rapRecorder.start();rapRecordStart=Date.now();$("recordLight").classList.add("live");$("recordStatus").textContent="RECORDING… GO!";$("rapRecord").classList.add("hidden");$("rapStop").classList.remove("hidden");rapTimer=setInterval(()=>{const sec=Math.floor((Date.now()-rapRecordStart)/1000);$("recordTimer").textContent=`00:${String(Math.min(45,sec)).padStart(2,"0")} / 00:45`;if(sec>=45)$("rapStop").click()},250);}catch(e){$("rapAudioResult").textContent="🎙️ Microphone access failed: "+e.message}};
+ $("rapStop").onclick=()=>{if(rapRecorder&&rapRecorder.state!=="inactive"){rapRecorder.stop();clearInterval(rapTimer);$("recordLight").classList.remove("live")}};
+ $("rapSubmitAudio").onclick=async()=>{if(!rapBlob)return;try{$("rapSubmitAudio").disabled=true;$("rapAudioResult").textContent="🤖 Transcribing your performance and preparing the judge…";const metrics=await blobMetrics(rapBlob);const url=await dataUrl(rapBlob);const d=await api("lizzy_rap_audio",{audioBase64:url,mime:rapBlob.type,metrics});$("rapAudioResult").textContent=d.state.phase==="revealed"?"🔥 Both performances are in. The AI judge has decided!":"🎧 Performance submitted. Waiting for Mikael…";renderRap(d.state,d.rounds)}catch(e){$("rapAudioResult").textContent="Could not submit performance: "+e.message;$("rapSubmitAudio").disabled=false}};
+}
 async function loadRap(){try{const d=await api("coop_rap");renderRap(d.state,d.rounds)}catch(e){$("rapStatus").textContent="Rap battle unavailable: "+e.message}}
-async function submitRap(){const t=$("rapText").value.trim();if(!t)return;try{const d=await api("lizzy_rap_submit",{text:t});$("rapText").value="";$("rapResult").textContent=d.state.phase==="revealed"?"⚖️ Both verses are in. The website has judged the round.":"🔒 Verse submitted. Waiting for Mikael…";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
-async function nextRap(){try{const d=await api("lizzy_rap_next");$("rapResult").textContent="";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
+async function submitRap(){const t=$("rapText").value.trim();if(!t)return;try{const d=await api("lizzy_rap_submit",{text:t});$("rapText").value="";$("rapResult").textContent="🔒 Written verse locked. Now perform it into the mic!";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
+async function nextRap(){try{const d=await api("lizzy_rap_next");$("rapResult").textContent="";$("rapAudioResult").textContent="";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
+setupRecorder();
 // Co-op tabs
  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.add("hidden"));$(b.dataset.tab).classList.remove("hidden");document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));if(b.dataset.tab==="rap")loadRap();});
 $("rapText").oninput=()=>$("rapCount").textContent=`${$("rapText").value.length} / 1600`;
 $("rapSubmit").onclick=submitRap;$("rapNext").onclick=nextRap;
 
-$("back").onclick=()=>history.back();
-loadChess();loadMessages();loadRap();setInterval(loadChess,3000);setInterval(loadMessages,2500);setInterval(()=>{if(!$("escape").classList.contains("hidden"))escapeLoad();if(!$("rap").classList.contains("hidden"))loadRap()},3000);
 })();
