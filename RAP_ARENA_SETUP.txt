@@ -3,24 +3,17 @@
 This version changes Rap Battle into a 3-step round:
 1. Write the verse.
 2. Submit the written verse.
-3. Record the verse aloud with the microphone and submit the performance.
 
-The Worker sends the recording to OpenAI speech-to-text, then sends the written verse, the spoken transcript, and audio-performance metrics to an AI judge. The AI returns structured scores and chooses the round winner.
 
 IMPORTANT WORKER SECRET
 Add this Cloudflare Worker secret:
 
-OPENAI_API_KEY = your OpenAI API key
+OPENAI_API_KEY is optional. If present, the Worker uses the OpenAI Responses API for written-bar judging. Without it, the built-in written-bar scorer is used.
 
 Keep the key ONLY in Cloudflare Worker Secrets. Do not put it in the website JavaScript.
 
-The recording is not stored in KV. The Worker uses it to transcribe the performance, stores the transcript + small audio metrics, and then the AI judge scores the round.
 
-Maximum recording time: 45 seconds.
-Maximum recording upload accepted by the Worker: 8 MB.
 
 OpenAI API endpoints used:
-- /v1/audio/transcriptions
 - /v1/responses
 
-If OPENAI_API_KEY is missing, the Worker falls back to the old rule-based scorer, but the intended mode for this version is AI + audio judging.

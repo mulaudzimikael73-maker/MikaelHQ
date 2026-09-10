@@ -76,21 +76,21 @@
     </section>
 
     <section id="escape" class="view hidden">
-      <div class="section-intro"><div><span class="pill">CO-OP</span><h2>🔐 Escape Room</h2><p>Start with a two-player prototype: Lizzy and Mikael receive different clues and must communicate.</p></div><button class="primary" id="startEscape">Start / Reset Room</button></div>
-      <div class="escape-grid">
-        <div class="card"><h3>🗺️ Mikael's clues</h3><p class="muted">These are your clues. Lizzy has the other half.</p><div id="mikaelClues" class="clues"></div></div>
-        <div class="card"><h3>🔢 Current lock</h3><div id="escapePuzzle" class="puzzle-card">Waiting…</div><div class="chat-row"><input id="hqEscapeAnswer" inputmode="numeric" placeholder="Combined answer"><button class="primary" id="hqEscapeSolve">Unlock</button></div><div id="hqEscapeResult" class="muted"></div><hr><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div>
-      </div>
-    </section>
+<div class="section-intro"><div><span class="pill">CO-OP • 6 ADVENTURES</span><h2>🔐 Escape Rooms</h2><p>Choose a room, start it, then solve 5 locks with Lizzy. Three are about your world together; three are harder random puzzles.</p></div></div>
+<div class="escape-room-picker" id="escapeRooms"></div>
+<div class="escape-room-banner"><div><b id="escapeRoomTitle">Choose an escape room</b><span id="escapeRoomTag"></span><p id="escapeRoomDesc">Pick an adventure, then start it.</p></div><button class="primary" id="startEscape">Start / Reset Room</button></div>
+<div class="escape-progress" id="escapeProgress"></div>
+<div class="escape-grid"><div class="card"><h3>🗺️ Mikael's clues</h3><p class="muted">These are your clues. Lizzy has the other half.</p><div id="mikaelClues" class="clues"></div></div><div class="card"><h3>🔢 Current lock</h3><div id="escapePuzzle" class="puzzle-card">Choose a room first.</div><div class="chat-row"><input id="hqEscapeAnswer" inputmode="text" maxlength="80" placeholder="Combined answer"><button class="primary" id="hqEscapeSolve">Unlock</button></div><div id="hqEscapeResult" class="muted"></div><hr><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div></div>
+</section>
 
 
     <section id="rap" class="view hidden">
-      <div class="hq-rap-arena"><div><span class="pill">🎤 MIKAEL HQ • RAP ARENA</span><h2>🔥 LIZZY <span>VS</span> MIKAEL 🔥</h2><p>Write your verse first. After you submit it, the mic opens. The AI judges the written bars against what you actually performed.</p></div><button class="primary arena-start" id="startRap">🎤 Start / Reset Battle</button></div>
+      <div class="hq-rap-arena"><div><span class="pill">🎤 MIKAEL HQ • RAP ARENA</span><h2>🔥 LIZZY <span>VS</span> MIKAEL 🔥</h2><p>Write your verse first. Submit it. Then the AI judge compares both written verses and decides the winner.</p></div><button class="primary arena-start" id="startRap">🎤 Start / Reset Battle</button></div>
       <div class="rap-score arena-score"><div>🩷 LIZZY <b id="hqLizzyScore">0</b></div><div><strong id="hqRapRound">ROUND 1</strong><small>LIVE BATTLE</small></div><div>🖤 MIKAEL <b id="hqMikaelScore">0</b></div></div>
       <div class="rap-stage"><div class="stage-player pink"><span>🩷</span><b>LIZZY</b></div><div class="stage-vs">VS</div><div class="stage-player black"><span>🖤</span><b>MIKAEL</b></div></div>
       <div class="rap-hero card"><div><b id="hqRapTitle">Round 1 — Warm-Up</b><p id="hqRapPrompt">Loading challenge…</p></div></div>
       <div class="rap-grid">
-        <div class="card rap-write arena-card"><div class="mic-header"><h3>📝 Your bars</h3><span id="hqRapPhaseBadge">STEP 1 • WRITE</span></div><textarea id="hqRapText" maxlength="1600" placeholder="Write your verse here…"></textarea><div class="rap-meta"><span id="hqRapCount">0 / 1600</span><button class="primary arena-button" id="hqRapSubmit">1️⃣ Submit Written Verse</button></div><div id="hqRapResult" class="muted"></div><div id="hqRapRecorder" class="recorder hidden"><div class="recorder-top"><span id="hqRecordLight">●</span><b id="hqRecordStatus">READY TO RECORD</b><span id="hqRecordTimer">00:00 / 00:45</span></div><div class="wave" id="hqWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="record-actions"><button class="arena-button record" id="hqRapRecord">🎙️ Start Recording</button><button class="arena-button stop hidden" id="hqRapStop">⏹ Stop</button></div><audio id="hqRapPlayback" class="hidden" controls></audio><button class="arena-button submit-audio hidden" id="hqRapSubmitAudio">🔥 Submit Performance</button><div id="hqRapAudioResult" class="muted"></div></div></div>
+        <div class="card rap-write arena-card"><div class="mic-header"><h3>📝 Your bars</h3><span id="hqRapPhaseBadge">STEP 1 • WRITE</span></div><textarea id="hqRapText" maxlength="1600" placeholder="Write your verse here…"></textarea><div class="rap-meta"><span id="hqRapCount">0 / 1600</span><button class="primary arena-button" id="hqRapSubmit">1️⃣ Submit Written Verse</button></div><div id="hqRapResult" class="muted"></div><div id="hqRapWaiting" class="muted"></div></div></div>
         <div class="card arena-card"><h3>📡 Battle Feed</h3><div id="hqRapStatus" class="rap-status">Waiting…</div><hr><div id="hqRapReveal" class="rap-reveal"></div><button class="primary arena-button hidden" id="hqRapNext">Next Round →</button></div>
       </div>
       <div class="card rap-history-card arena-card"><h3>🏆 Battle History</h3><div id="hqRapHistory" class="rap-history"></div></div>

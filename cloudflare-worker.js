@@ -41,46 +41,63 @@ async function hqActivity(env,type,text,meta={}){
 async function hqLetters(env){const xs=await arrKV(env,HQ_LETTER_INDEX);return xs.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));}
 async function hqMessages(env){const xs=await arrKV(env,HQ_MESSAGE_INDEX);return xs.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));}
 const defaultChess=()=>({id:"chess-main",fen:"start",pgn:"",turn:"w",status:"active",lastMove:null,updatedAt:new Date().toISOString()});
-const defaultEscape=()=>({
- status:"ready",
- progress:"Waiting for Mikael to start the room.",
- stage:1,
- solvedStages:[],
- attempts:0,
- mikaelClues:[
-  "ROOM RULE: You have half the information. Lizzy has the other half.",
-  "LOCK 1 — The wall clock is stuck at 10:20. Take the HOUR only.",
-  "LOCK 2 — The painting has four corners. Take the number of corners.",
-  "LOCK 3 — The strange symbol is a crescent with ONE dot. Take the number of dots.",
-  "Do not give Lizzy your answers alone — combine them with her clues."
- ],
- lizzyClues:[
-  "ROOM RULE: You have half the information. Mikael has the other half.",
-  "LOCK 1 — The bookshelf has THREE red books. Take the number of red books.",
-  "LOCK 2 — Something under the chair has the number SEVEN on it.",
-  "LOCK 3 — The door says: 'TWO codes are needed after the first lock.' Take TWO.",
-  "Tell Mikael what you find so you can combine the clues."
- ],
- stageInfo:{1:{title:"The Library Lock",hint:"Combine Mikael's hour (10) with Lizzy's red books (3). Enter 103.",answer:"103"},2:{title:"The Hidden Chair Lock",hint:"Combine the painting's corners (4) with the number under the chair (7). Enter 47.",answer:"47"},3:{title:"The Final Door",hint:"Combine the one dot (1) with the two codes instruction (2). Enter 12.",answer:"12"}},
- chat:[],
- updatedAt:new Date().toISOString()
-});
+const ESCAPE_ROOMS={
+ timeline:{title:"🕰️ Our Timeline Heist",tag:"ABOUT US",desc:"A locked archive has mixed up pieces of your story. You each hold half the evidence.",locks:[
+  {title:"The First Date File",answer:"7",hint:"Identify the activity Lizzy is especially good at, then count its letters.",m:["The date file says the challenge Lizzy dominated was BOWLING.","Take the number of letters in the activity name."],l:["Your clue confirms the activity was BOWLING.","Count the letters in BOWLING."]},
+  {title:"Precinct 99",answer:"99",hint:"Identify the sitcom and extract the repeated number in its title.",m:["The sitcom we keep referencing is about a police precinct.","Its title contains the number nine twice."],l:["The show is BROOKLYN NINE-NINE.","Read the repeated number in its title."]},
+  {title:"Arcade Revenge",answer:"6",hint:"The bowling rivalry had a sequel at this place. Count its letters.",m:["After bowling, the rivalry moved to the ARCADE.","Take the number of letters in ARCADE."],l:["The arcade was the place where the rematch happened.","Count the letters in ARCADE."]},
+  {title:"The Pasta Cipher",answer:"5",hint:"Find the comfort-food word and count its letters.",m:["A favourite comfort-food clue points to PASTA.","Count the letters in PASTA."],l:["Your clue also points to PASTA.","Use its letter count as the lock code."]},
+  {title:"Mr Perfect",answer:"9",hint:"Count the letters in the nickname used for Mikael in the HQ world, ignoring the space.",m:["The file calls Mikael MR PERFECT.","Ignore the space and count the letters."],l:["The final note says the person on the other side is MR PERFECT.","Count the letters, ignoring the space."]}
+ ]},
+ lizzyos:{title:"💗 LizzyOS: System Breach",tag:"ABOUT US",desc:"Agent Yelizaveta's system has gone into lockdown. Mikael has the admin fragments; Lizzy has the user-side fragments.",locks:[
+  {title:"Login Fragment",answer:"4",hint:"Use the secret agent's short name and count its letters.",m:["The system's agent name is LIZZY.","Count its letters."],l:["Your profile calls you LIZZY.","The login fragment is the number of letters in the name."]},
+  {title:"Pink Glass",answer:"5",hint:"The interface theme gives you the word to count.",m:["LizzyOS uses a PINK glassmorphism aesthetic.","Count the letters in PINK."],l:["Your UI clue says PINK.","Count the letters in PINK."]},
+  {title:"Open When",answer:"8",hint:"Count the letters in OPEN WHEN, ignoring the space.",m:["There are OPEN WHEN letters for different moments.","Count the letters, ignoring the space."],l:["Your clue says OPEN WHEN.","Count the letters, ignoring the space."]},
+  {title:"Agent Yelizaveta",answer:"15",hint:"Count every letter in AGENT YELIZAVETA, ignoring the space.",m:["The codename is AGENT YELIZAVETA.","Count every letter after removing the space."],l:["Your mission file confirms the codename AGENT YELIZAVETA.","Count every letter, ignoring the space."]},
+  {title:"Our World",answer:"3",hint:"Count the main co-op game worlds currently in the hub.",m:["The co-op hub has CHESS, ESCAPE ROOM and RAP BATTLE.","Count the main game worlds."],l:["Your clue lists CHESS, ESCAPE ROOM and RAP BATTLE.","How many main co-op games are there?"]}
+ ]},
+ datenight:{title:"🎳 The Date Night Vault",tag:"ABOUT US",desc:"A locked date-night vault has clues scattered between you. Solve each mini-puzzle together.",locks:[
+  {title:"Choose the Arena",answer:"7",hint:"Identify the activity using pins and a heavy ball, then count its letters.",m:["It is the game where Lizzy is very good and Mikael is still learning.","Its name has seven letters."],l:["Your clue says this activity uses pins and a heavy ball.","Name it, then count its letters."]},
+  {title:"Level Select",answer:"1",hint:"How many times had Mikael played bowling before the date plan?",m:["The record says Mikael had only been bowling once before.","Use the number of previous bowling sessions."],l:["Your clue says there was one earlier bowling attempt.","Take that count."]},
+  {title:"Sweet Evidence",answer:"9",hint:"Count the letters in the sweet gift that sat beside the candle.",m:["A small gift sat beside the candle: CHOCOLATE.","Count the letters."],l:["The evidence bag contains CHOCOLATE.","Count its letters."]},
+  {title:"The Spare Plan",answer:"6",hint:"The backup destination after bowling was the ARCADE. Count its letters.",m:["The backup destination is ARCADE.","Count its letters."],l:["Your clue says the rematch happened at the ARCADE.","Count its letters."]},
+  {title:"Final Reservation",answer:"4",hint:"Count the letters in DATE.",m:["The vault's final label is DATE.","Count its letters."],l:["Your clue also says DATE.","Count its letters."]}
+ ]},
+ clockwork:{title:"⚙️ The Clockwork Manor",tag:"HARD • RANDOM",desc:"A manor runs on impossible clocks. Every lock requires two halves of a logic puzzle.",locks:[
+  {title:"The Silent Clock",answer:"14",hint:"Add the hour on Mikael's clock to the number of bells Lizzy hears.",m:["The frozen clock reads 11:00.","Use the hour only."],l:["The bell tower rings THREE times.","Add your number to Mikael's hour."]},
+  {title:"The Mirror Hall",answer:"36",hint:"Multiply the two matching clue numbers.",m:["The mirror has SIX panels.","Use six as the first factor."],l:["There are SIX candles reflected in the mirror.","Multiply the two clue numbers."]},
+  {title:"The Staircase",answer:"48",hint:"Continue the doubling sequence: 3, 6, 12, 24, ?",m:["The staircase doubles each number.","Start at 3: 3 → 6 → 12 → 24 → ?"],l:["The door says the target is the next value after 24.","What is it?"]},
+  {title:"The False Portrait",answer:"8",hint:"Choose the even number from 8 and 11.",m:["Portrait A says 8. Portrait B says 11.","The plaque says the correct portrait has an even number."],l:["The plaque confirms: choose the even portrait number.","The two portrait numbers are 8 and 11."]},
+  {title:"The Master Key",answer:"90",hint:"Calculate first + second + fourth − 8: 14 + 36 + 48 − 8.",m:["Use locks 1, 2 and 3, then subtract 8.","Calculate 14 + 36 + 48 − 8."],l:["The master key formula is FIRST + SECOND + THIRD − 8.","Use the numbers you solved together."]}
+ ]},
+ cipher:{title:"🧩 The Cipher Museum",tag:"HARD • RANDOM",desc:"Six exhibits are fake. The real path is hidden in patterns, substitutions and extraction.",locks:[
+  {title:"Caesar's Label",answer:"5",hint:"Shift K backwards by 6. Convert the resulting letter to A=1, B=2, etc.",m:["The label reads K.","A curator says the shift is SIX."],l:["Shift K backwards by SIX letters.","Which letter do you land on? Convert A=1, B=2..." ]},
+  {title:"Binary Case",answer:"13",hint:"Convert binary 1101 to decimal.",m:["The exhibit tag reads 1101 in binary.","Convert it to decimal."],l:["Your card says the number is binary: 1101.","Use powers of two to convert it."]},
+  {title:"Pattern Wall",answer:"36",hint:"Continue the square-number sequence: 1, 4, 9, 16, 25, ?",m:["The sequence is 1, 4, 9, 16, 25...","Find the next square."],l:["The wall says these are perfect squares.","What comes after 25?"]},
+  {title:"Prime Vault",answer:"29",hint:"Find the next prime after 23.",m:["The vault gives 23 as the last accepted prime.","Find the next prime."],l:["23 is followed by one prime before 31.","What is it?"]},
+  {title:"Exhibit Zero",answer:"102",hint:"Calculate first × second − third + fourth: 5 × 13 − 36 + 29.",m:["Formula: first × second − third + fourth.","Use 5, 13, 36 and 29."],l:["The museum formula is 5 × 13 − 36 + 29.","Calculate it exactly."]}
+ ]},
+ labyrinth:{title:"🌑 Blackout Labyrinth",tag:"EXTREME • RANDOM",desc:"The lights are out. Communicate every observation and avoid the decoy paths.",locks:[
+  {title:"The Three Doors",answer:"2",hint:"11 is prime, so choose the door labelled PRIME.",m:["Door 1 says EVEN. Door 2 says PRIME. Door 3 says MULTIPLE OF 3.","The number on your card is 11."],l:["The number is 11.","11 is prime, not even and not a multiple of 3. Choose the matching door number."]},
+  {title:"Echo Chamber",answer:"27",hint:"Multiply the starting value by the number of repetitions.",m:["Start with 9.","The echo repeats the value THREE times."],l:["The echo says multiply the starting value by 3.","Your starting value is 9."]},
+  {title:"Broken Compass",answer:"360",hint:"W is 270° and E is 90°. Add them.",m:["Compass fragment: W.","W is 270 degrees."],l:["Compass fragment: E.","E is 90 degrees. Add both values."]},
+  {title:"The Decoy Sequence",answer:"89",hint:"Each number is the sum of the previous two: 13, 21, 34, 55, ?",m:["Sequence fragment ends: 13, 21, 34, 55.","Continue the pattern."],l:["The rule is add the previous two numbers.","Find the next value after 55."]},
+  {title:"Exit Protocol",answer:"298",hint:"Add locks 1–4, then subtract 270: 2 + 27 + 360 + 89 − 180.",m:["Use the answers from locks 1–4.","Calculate 2 + 27 + 360 + 89 − 180."],l:["The exit formula is locks 1–4 minus 180.","Use 2, 27, 360 and 89."]}
+ ]}
+};
+const escapeRoom=(id)=>ESCAPE_ROOMS[id]||ESCAPE_ROOMS.timeline;
+const escapeKey=(id)=>`hq:escape:v2:${escapeRoom(id)?id:"timeline"}`;
+const defaultEscape=(roomId="timeline")=>{const room=escapeRoom(roomId);return {id:roomId,status:"ready",progress:"Waiting for Mikael to start the room.",stage:1,solvedStages:[],attempts:0,roomTitle:room.title,roomTag:room.tag,roomDesc:room.desc,mikaelClues:room.locks.flatMap(x=>x.m),lizzyClues:room.locks.flatMap(x=>x.l),stageInfo:Object.fromEntries(room.locks.map((x,i)=>[i+1,{title:x.title,answer:x.answer,hint:x.hint}])),chat:[],startedAt:null,updatedAt:new Date().toISOString()};};
+const escapeState=async(env,roomId)=>await env.LIZZY_CLAIMS.get(escapeKey(roomId),{type:"json"})||defaultEscape(roomId);
+const publicEscapeView=(s)=>{const x={...s};delete x.mikaelClues;return x;};
+const hqEscapeView=(s)=>{const x={...s};delete x.lizzyClues;return x;};
 
-
-const HQ_RAP_KEY="hq:rap:v1";
-const RAP_ROUNDS=[
- {title:"Warm-Up",prompt:"Write a confident 4-line verse introducing yourself and your opponent."},
- {title:"Word Drop",prompt:"Use ALL THREE words naturally: bowling, attitude, champion."},
- {title:"Roast Battle",prompt:"Roast your opponent cleverly without being genuinely cruel."},
- {title:"Counterattack",prompt:"Respond to your opponent's last verse with a clever comeback."},
- {title:"Final Round",prompt:"Give your strongest 4–8 line verse. No extra rules. Make it memorable."}
-];
 const defaultRap=()=>({id:"rap-main",status:"ready",round:1,phase:"writing",submissions:{lizzy:null,mikael:null},scores:{},roundWinners:[],history:[],chat:[],updatedAt:new Date().toISOString()});
 const rapWords=t=>String(t||"").toLowerCase().match(/[a-z0-9']+/g)||[];
 const RAP_JUDGE_MODEL="gpt-5-mini";
-function fallbackRapScore(text,round,opponent="",audio={}){
+function fallbackRapScore(text,round,opponent=""){
  const raw=String(text||"").trim(), w=rapWords(raw), unique=new Set(w);
- if(!w.length)return {total:0,relevance:0,creativity:0,humour:0,wordplay:0,rhyme:0,impact:0,delivery:0,feedback:"No verse submitted."};
+ if(!w.length)return {total:0,relevance:0,creativity:0,humour:0,wordplay:0,rhyme:0,structure:0,feedback:"No verse submitted."};
  const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean), ends=lines.map(x=>{const a=rapWords(x);return a[a.length-1]||""}).filter(Boolean);
  let rhyme=0; for(let i=1;i<ends.length;i++){const a=ends[i-1],b=ends[i];if(a===b||a.slice(-3)===b.slice(-3)||a.slice(-2)===b.slice(-2))rhyme++;}
  const rhymeScore=Math.min(15,Math.round((rhyme/Math.max(1,ends.length-1))*15)+Math.min(4,Math.floor(lines.length/2)));
@@ -89,70 +106,46 @@ function fallbackRapScore(text,round,opponent="",audio={}){
  const required=round===2?["bowling","attitude","champion"]:[];
  const requiredHits=required.filter(x=>w.includes(x)).length;
  const relevance=Math.min(20,8+Math.min(10,promptHits*3)+requiredHits*2);
- const creativity=Math.min(20,7+Math.min(10,unique.size>=Math.min(18,w.length)?10:Math.floor(unique.size/2))+Math.min(3,Math.floor(lines.length/2)));
+ const creativity=Math.min(20,7+Math.min(10,Math.floor(unique.size/2))+Math.min(3,Math.floor(lines.length/2)));
  const humour=Math.min(15,round===3?7+Math.min(8,(raw.match(/\b(lol|haha|funny|roast|burn|clown|attitude|perfect|humble|win|lose|better)\b/gi)||[]).length):7+Math.min(5,(raw.match(/[!?]/g)||[]).length));
  const wordplay=Math.min(15,5+Math.min(7,Math.floor(unique.size/5))+Math.min(3,(raw.match(/\b(and|but|because|like|than|never|always)\b/gi)||[]).length));
- const impact=Math.min(15,6+Math.min(6,Math.floor(w.length/8))+Math.min(3,Math.floor(lines.length/2)));
- const delivery=Math.max(0,Math.min(15,Math.round(7+(Number(audio?.rms||0)*10)+(Number(audio?.speechRate||0)>2?3:0))));
- const total=Math.min(100,relevance+creativity+humour+wordplay+rhymeScore+impact+delivery);
- return {total,relevance,creativity,humour,wordplay,rhyme:rhymeScore,impact,delivery,feedback:total>=85?"Strong bars and confident delivery.":total>=70?"Solid round with good energy; sharpen the punchlines and delivery.":"Build a clearer punchline, stronger structure and more confident delivery."};
+ const structure=Math.min(15,6+Math.min(6,Math.floor(w.length/8))+Math.min(3,Math.floor(lines.length/2)));
+ const impact=Math.min(15,6+Math.min(6,Math.floor(w.length/10))+Math.min(3,Math.floor(lines.length/2)));
+ const total=Math.min(100,relevance+creativity+humour+wordplay+rhymeScore+structure+impact);
+ return {total,relevance,creativity,humour,wordplay,rhyme:rhymeScore,structure,impact,feedback:total>=85?"Strong bars with clear ideas and punchlines.":total>=70?"Solid round with good ideas; sharpen the punchlines and rhyme scheme.":"Build a clearer structure, stronger punchlines and more memorable wordplay."};
 }
 async function aiRapJudge(env,round,lizzy,mikael){
  const key=String(env?.OPENAI_API_KEY||"");
  if(!key)return null;
  const r=RAP_ROUNDS[round-1]||{};
- const prompt=`You are the neutral judge of a playful two-player rap battle between Lizzy and Mikael. Do not favour either person. Judge the actual competition, not the names. The round challenge is: ${r.title} — ${r.prompt}\n\nEach player first wrote a verse, then performed it aloud. The written verse is authoritative for intended lyrics; the transcript is what the player actually said. Audio metrics are evidence about delivery only. Reward cleverness, relevance, rhyme/wordplay, humour, punchlines, and delivery. Do not punish accent, gender, microphone quality, background noise, or transcription mistakes that are clearly caused by speech recognition. Compare both players fairly. Return JSON only with scores out of the category maximums: relevance 20, creativity 20, humour 15, wordplay 15, rhyme 15, delivery 15, total 100, plus a short feedback sentence for each player and winner ('lizzy','mikael','tie').\n\nLIZZY WRITTEN:\n${lizzy.text}\nLIZZY TRANSCRIPT:\n${lizzy.audio?.transcript||""}\nLIZZY AUDIO METRICS:\n${JSON.stringify(lizzy.audio?.metrics||{})}\n\nMIKAEL WRITTEN:\n${mikael.text}\nMIKAEL TRANSCRIPT:\n${mikael.audio?.transcript||""}\nMIKAEL AUDIO METRICS:\n${JSON.stringify(mikael.audio?.metrics||{})}`;
+ const prompt=`You are the neutral judge of a playful two-player written rap battle between Lizzy and Mikael. Do not favour either person. Judge only the written verses. The round challenge is: ${r.title} — ${r.prompt}\n\nReward relevance, creativity, humour, wordplay, rhyme, structure, punchlines and overall impact. Compare both verses fairly. Do not judge delivery, voice, accent, gender, microphone quality, or anything about audio. Return JSON only with scores out of the category maximums: relevance 20, creativity 20, humour 15, wordplay 15, rhyme 15, structure 15, impact 15, total 100, plus a short feedback sentence for each player and winner ('lizzy','mikael','tie').\n\nLIZZY VERSE:\n${S(lizzy.text,1600)}\n\nMIKAEL VERSE:\n${S(mikael.text,1600)}`;
  try{
-   const judgeSchema={type:"object",properties:{lizzy:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},delivery:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","delivery","total","feedback"],additionalProperties:false},mikael:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},delivery:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","delivery","total","feedback"],additionalProperties:false},winner:{type:"string",enum:["lizzy","mikael","tie"]}},required:["lizzy","mikael","winner"],additionalProperties:false};
+   const judgeSchema={type:"object",properties:{lizzy:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},structure:{type:"integer",minimum:0,maximum:15},impact:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","structure","impact","total","feedback"],additionalProperties:false},mikael:{type:"object",properties:{relevance:{type:"integer",minimum:0,maximum:20},creativity:{type:"integer",minimum:0,maximum:20},humour:{type:"integer",minimum:0,maximum:15},wordplay:{type:"integer",minimum:0,maximum:15},rhyme:{type:"integer",minimum:0,maximum:15},structure:{type:"integer",minimum:0,maximum:15},impact:{type:"integer",minimum:0,maximum:15},total:{type:"integer",minimum:0,maximum:100},feedback:{type:"string"}},required:["relevance","creativity","humour","wordplay","rhyme","structure","impact","total","feedback"],additionalProperties:false},winner:{type:"string",enum:["lizzy","mikael","tie"]}},required:["lizzy","mikael","winner"],additionalProperties:false};
    const resp=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${key}`},body:JSON.stringify({model:RAP_JUDGE_MODEL,input:prompt,store:false,text:{format:{type:"json_schema",name:"rap_judgement",strict:true,schema:judgeSchema}}})});
-   if(!resp.ok)throw new Error(`OpenAI judge HTTP ${resp.status}`);
-   const data=await resp.json();
-   const out=data.output_text||data.output?.flatMap(x=>x.content||[]).find(x=>x.type==="output_text")?.text;
-   if(!out)throw new Error("No judge output");
-   return JSON.parse(out);
+   if(!resp.ok)throw new Error(`OpenAI judge HTTP ${resp.status}`); const data=await resp.json(); const out=data.output_text||data.output?.flatMap(x=>x.content||[]).find(x=>x.type==="output_text")?.text; if(!out)throw new Error("No judge output"); return JSON.parse(out);
  }catch(e){return null;}
-}
-async function transcribeRapAudio(env,base64,mime,text){
- const key=String(env?.OPENAI_API_KEY||""); if(!key)return {error:"Voice judging is not configured yet. Add OPENAI_API_KEY to the Worker secrets."};
- const clean=String(base64||"").replace(/^data:[^,]+,/,""); if(!clean)return {error:"No recording received."};
- let bytes; try{bytes=Uint8Array.from(atob(clean),c=>c.charCodeAt(0));}catch{return {error:"Recording data was invalid."};}
- if(bytes.byteLength>8*1024*1024)return {error:"Recording is too large. Keep each performance under 45 seconds."};
- const type=String(mime||"audio/webm").split(";")[0]||"audio/webm";
- const ext=type.includes("mp4")||type.includes("m4a")?"mp4":type.includes("ogg")?"ogg":"webm";
- const form=new FormData();form.append("file",new File([bytes],`rap.${ext}`,{type}),`rap.${ext}`);form.append("model","gpt-4o-mini-transcribe");form.append("language","en");form.append("prompt",`This is a playful rap battle performance. The intended written verse is:\n${S(text,1600)}`);
- const r=await fetch("https://api.openai.com/v1/audio/transcriptions",{method:"POST",headers:{authorization:`Bearer ${key}`},body:form});
- if(!r.ok){let msg="Transcription failed.";try{msg=(await r.json()).error?.message||msg}catch{}return {error:msg};}
- const d=await r.json();return {transcript:S(d.text||"",2000)};
 }
 async function rapState(env){return await env.LIZZY_CLAIMS.get(HQ_RAP_KEY,{type:"json"})||defaultRap();}
 async function putRap(env,state){state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_RAP_KEY,JSON.stringify(state));}
 async function rapSubmitText(env,player,text){
  const state=await rapState(env); if(state.status!=="active")return {error:"The rap battle has not started yet."};
- if(state.phase!=="writing"&&state.phase!=="recording")return {error:"This round is no longer accepting verses."};
+ if(state.phase!=="writing")return {error:"This round is no longer accepting verses."};
  const clean=S(text,1600); if(!clean)return {error:"Write a verse first."};
  state.submissions=state.submissions||{}; if(state.submissions[player]?.text)return {error:"You already submitted your written verse."};
- state.submissions[player]={text:clean,submittedAt:new Date().toISOString(),audio:null}; state.phase="recording";
- await putRap(env,state);return {state};
-}
-async function rapSubmitAudio(env,player,base64,mime,metrics){
- const state=await rapState(env); if(state.status!=="active")return {error:"The rap battle has not started yet."};
- const sub=state.submissions?.[player]; if(!sub?.text)return {error:"Submit your written verse first."};
- if(sub.audio)return {error:"Your recording is already submitted."};
- const tr=await transcribeRapAudio(env,base64,mime,sub.text); if(tr.error)return tr;
- sub.audio={transcript:tr.transcript,metrics:{duration:Number(metrics?.duration||0),rms:Number(metrics?.rms||0),peak:Number(metrics?.peak||0),silenceRatio:Number(metrics?.silenceRatio||0),wordCount:rapWords(tr.transcript).length,speechRate:Number(metrics?.duration||0)?rapWords(tr.transcript).length/Number(metrics.duration):0},submittedAt:new Date().toISOString()};
- if(state.submissions.lizzy?.audio&&state.submissions.mikael?.audio){
+ state.submissions[player]={text:clean,submittedAt:new Date().toISOString()};
+ if(state.submissions.lizzy?.text&&state.submissions.mikael?.text){
    let judge=await aiRapJudge(env,state.round,state.submissions.lizzy,state.submissions.mikael);
-   if(!judge){const a=fallbackRapScore(state.submissions.lizzy.text,state.round,state.submissions.mikael.text,state.submissions.lizzy.audio.metrics),b=fallbackRapScore(state.submissions.mikael.text,state.round,state.submissions.lizzy.text,state.submissions.mikael.audio.metrics);judge={lizzy:a,mikael:b,winner:a.total===b.total?"tie":a.total>b.total?"lizzy":"mikael"};}
-   state.scores=state.scores||{};state.scores[state.round]={lizzy:judge.lizzy,mikael:judge.mikael,judge:"AI + audio transcription"};
+   if(!judge){const a=fallbackRapScore(state.submissions.lizzy.text,state.round,state.submissions.mikael.text),b=fallbackRapScore(state.submissions.mikael.text,state.round,state.submissions.lizzy.text);judge={lizzy:a,mikael:b,winner:a.total===b.total?"tie":a.total>b.total?"lizzy":"mikael"};}
+   state.scores=state.scores||{};state.scores[state.round]={lizzy:judge.lizzy,mikael:judge.mikael,judge:"AI written-bar judge"};
    state.roundWinners=Array.isArray(state.roundWinners)?state.roundWinners:[];state.roundWinners.push(judge.winner);
    state.history=Array.isArray(state.history)?state.history:[];state.history.push({round:state.round,title:RAP_ROUNDS[state.round-1].title,prompt:RAP_ROUNDS[state.round-1].prompt,submissions:state.submissions,scores:state.scores[state.round],winner:judge.winner});
    state.phase="revealed";
- }
+ }else state.phase="writing";
  await putRap(env,state);return {state};
 }
 async function rapNext(env){
  const state=await rapState(env);if(state.status!=="active")return {error:"Battle is not active."};
- if(state.phase!=="revealed")return {error:"Both players must submit their written verse and recording before the next round."};
+ if(state.phase!=="revealed")return {error:"Both players must submit their written verse before the next round."};
  if(state.round>=RAP_ROUNDS.length){state.status="solved";state.phase="finished";await putRap(env,state);return {state};}
  state.round++;state.phase="writing";state.submissions={lizzy:null,mikael:null};await putRap(env,state);return {state};
 }
@@ -389,14 +382,14 @@ export default{async fetch(req,env){
 
  if(req.method==="GET"){
    if(u.searchParams.get("action")==="coop_chess"){const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess();return json({success:true,state});}
-   if(u.searchParams.get("action")==="coop_escape"){const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();return json({success:true,state});}
+   if(u.searchParams.get("action")==="coop_escape"){const roomId=u.searchParams.get("room")||"timeline";const state=await escapeState(env,roomId);return json({success:true,state:publicEscapeView(state),rooms:Object.entries(ESCAPE_ROOMS).map(([id,r])=>({id,title:r.title,tag:r.tag,desc:r.desc,locks:r.locks.length}))});}
    if(u.searchParams.get("action")==="coop_rap"){const state=await rapState(env);return json({success:true,state,rounds:RAP_ROUNDS});}
    if(u.searchParams.get("action")==="lizzy_messages"){const messages=await hqMessages(env);return json({success:true,messages:messages.filter(x=>x.status!=="handled").slice(-50)});}
    if(u.searchParams.get("action")==="hq_ping"){if(!hqOnly(req,env))return json({success:false,error:"Invalid HQ key"},401);return json({success:true});}
    if(u.searchParams.get("action")==="hq_letters"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,letters:await hqLetters(env)});}
    if(u.searchParams.get("action")==="hq_dashboard"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const letters=await hqLetters(env),msgs=await hqMessages(env),chess=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),activity=await arrKV(env,HQ_ACTIVITY_INDEX);return json({success:true,unreadLetters:letters.filter(x=>x.status==="unread").length,openQuestions:msgs.filter(x=>x.kind==="question"&&x.status==="open").length,activeGames:chess.status==="active"?1:0,activityCount:activity.length,latestLetter:letters[0]||null,chess});}
    if(u.searchParams.get("action")==="chess_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),ids=await arrKV(env,HQ_CHESS_HELP_INDEX),requests=[];for(const x of ids){const r=await env.LIZZY_CLAIMS.get(`hq:chesshelp:${x}`,{type:"json"});if(r&&r.status==="open")requests.push(r);}return json({success:true,state,requests});}
-   if(u.searchParams.get("action")==="escape_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape()});}
+   if(u.searchParams.get("action")==="escape_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const roomId=u.searchParams.get("room")||"timeline";return json({success:true,state:hqEscapeView(await escapeState(env,roomId)),rooms:Object.entries(ESCAPE_ROOMS).map(([id,r])=>({id,title:r.title,tag:r.tag,desc:r.desc,locks:r.locks.length}))});}
    if(u.searchParams.get("action")==="hq_rap_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await rapState(env),rounds:RAP_ROUNDS});}
    if(u.searchParams.get("action")==="hq_activity"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,activity:(await arrKV(env,HQ_ACTIVITY_INDEX)).slice(-100).reverse()});}
    if(u.searchParams.get("mikaelTokens")==="1"){
@@ -536,38 +529,8 @@ export default{async fetch(req,env){
  if(b.action==="hq_letters"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,letters:await hqLetters(env)});}
  if(b.action==="hq_dashboard"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const letters=await hqLetters(env),msgs=await hqMessages(env),chess=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),activity=await arrKV(env,HQ_ACTIVITY_INDEX);return json({success:true,unreadLetters:letters.filter(x=>x.status==="unread").length,openQuestions:msgs.filter(x=>x.kind==="question"&&x.status==="open").length,activeGames:chess.status==="active"?1:0,activityCount:activity.length,latestLetter:letters[0]||null,chess});}
  if(b.action==="hq_rap_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await rapState(env),rounds:RAP_ROUNDS});}
+ if(b.action==="escape_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const roomId=S(b.roomId,40)||"timeline";return json({success:true,state:hqEscapeView(await escapeState(env,roomId)),rooms:Object.entries(ESCAPE_ROOMS).map(([id,r])=>({id,title:r.title,tag:r.tag,desc:r.desc,locks:r.locks.length}))});}
  if(b.action==="chess_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),ids=await arrKV(env,HQ_CHESS_HELP_INDEX),requests=[];for(const x of ids){const r=await env.LIZZY_CLAIMS.get(`hq:chesshelp:${x}`,{type:"json"});if(r&&r.status==="open")requests.push(r);}return json({success:true,state,requests});}
- if(b.action==="escape_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape()});}
- if(b.action==="hq_activity"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,activity:(await arrKV(env,HQ_ACTIVITY_INDEX)).slice(-100).reverse()});}
-
- /* ---- MIKAEL HQ / TWO-WAY ACTIONS ---- */
- if(b.action==="lizzy_chess_move"){const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess();if(state.turn!=="w")return json({success:false,error:"It is Mikael's turn."},409);const next={...state,fen:S(b.fen,200),pgn:S(b.pgn,8000),turn:S(b.turn||"b",1),lastMove:S(b.lastMove,30),updatedAt:new Date().toISOString()};await env.LIZZY_CLAIMS.put(HQ_CHESS_KEY,JSON.stringify(next));await hqActivity(env,"♟️ Chess Move","Lizzy played a move.",{lastMove:next.lastMove});return json({success:true,state:next});}
- if(b.action==="lizzy_chess_help"){const text=S(b.text,500);if(!text)return json({success:false,error:"Request empty"},400);const r={id:hqId("help"),text,status:"open",createdAt:new Date().toISOString()};await env.LIZZY_CLAIMS.put(`hq:chesshelp:${r.id}`,JSON.stringify(r),{expirationTtl:86400});const ids=await arrKV(env,HQ_CHESS_HELP_INDEX);ids.push(r.id);await saveArr(env,HQ_CHESS_HELP_INDEX,ids);await hqActivity(env,"♟️ Chess Help",`Lizzy asked: ${text}`,{requestId:r.id});await tg(env,"sendMessage",{chat_id:env.TELEGRAM_CHAT_ID,text:`♟️ LIZZY NEEDS CHESS HELP\n\n${text}`});return json({success:true});}
- if(b.action==="lizzy_escape_chat"){const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Lizzy",text:S(b.text,600),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Chat","Lizzy sent a message in the escape room.");return json({success:true,state});}
- if(b.action==="lizzy_escape_solve"){
-  const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();
-  if(state.status!=="active")return json({success:false,error:"The escape room has not been started yet."},409);
-  const stage=Math.max(1,Math.min(3,Number(b.stage||state.stage||1)));
-  const answer=S(b.answer,30).replace(/\s+/g,"");
-  const expected=state.stageInfo?.[stage]?.answer;
-  state.attempts=Number(state.attempts||0)+1;
-  if(answer===expected){
-    if(!Array.isArray(state.solvedStages))state.solvedStages=[];
-    if(!state.solvedStages.includes(stage))state.solvedStages.push(stage);
-    if(stage<3){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}
-    else {state.stage=3;state.status="solved";state.progress="🎉 YOU ESCAPED! Lizzy and Mikael solved all three locks together.";}
-    state.updatedAt=new Date().toISOString();
-    state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened!`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);
-    await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));
-    await hqActivity(env,"🔐 Escape Solved",`Lock ${stage} was solved.`,{stage});
-    return json({success:true,correct:true,state});
-  }
-  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`❌ Someone entered the wrong answer for Lock ${stage}. Talk to each other and try again.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();
-  await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));
-  return json({success:true,correct:false,state});
- }
- if(b.action==="escape_hint"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();const stage=Math.max(1,Math.min(3,Number(state.stage||1)));const hint=state.stageInfo?.[stage]?.hint||"Compare your clue with Lizzy's clue.";return json({success:true,hint});}
-
  if(b.action==="submit_letter"){const text=S(b.text,4000),subject=S(b.subject||"A letter for Mikael",120),from=S(b.from||"Lizzy",60);if(!text)return json({success:false,error:"Letter is empty"},400);const letter={id:hqId("letter"),subject,text,from,status:"unread",reply:null,createdAt:new Date().toISOString()};const xs=await hqLetters(env);xs.push(letter);await saveArr(env,HQ_LETTER_INDEX,xs);await hqActivity(env,"💌 New Letter",`Lizzy sent a letter: ${subject}`,{letterId:letter.id});await tg(env,"sendMessage",{chat_id:env.TELEGRAM_CHAT_ID,text:`💌 NEW LETTER FROM LIZZY\n\n${subject}\n\n${text.slice(0,1800)}\n\nOpen Mikael HQ to reply.`});return json({success:true,letter});}
  if(b.action==="reply_letter"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const lid=S(b.id,120),reply=S(b.reply,4000),xs=await hqLetters(env),l=xs.find(x=>x.id===lid);if(!l)return json({success:false,error:"Letter not found"},404);l.reply=reply;l.status="replied";l.repliedAt=new Date().toISOString();await saveArr(env,HQ_LETTER_INDEX,xs);const msgs=await hqMessages(env);msgs.push({id:hqId("message"),kind:"letter_reply",text:`💌 Mikael replied to your letter “${l.subject}”:\n\n${reply}`,status:"pending",createdAt:new Date().toISOString(),letterId:lid});await saveArr(env,HQ_MESSAGE_INDEX,msgs);await hqActivity(env,"🖤 Letter Reply",`Mikael replied to ${l.subject}`,{letterId:lid});return json({success:true,letter:l});}
  if(b.action==="hq_message"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const text=S(b.text,1800);if(!text)return json({success:false,error:"Message is empty"},400);const m={id:hqId("message"),kind:"message",text,status:"pending",createdAt:new Date().toISOString()};const xs=await hqMessages(env);xs.push(m);await saveArr(env,HQ_MESSAGE_INDEX,xs);await hqActivity(env,"💌 Message Sent","Mikael left Lizzy a new message.",{messageId:m.id});return json({success:true,message:m});}
@@ -580,14 +543,29 @@ export default{async fetch(req,env){
  if(b.action==="send_chess_hint"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const text=S(b.text,1000);if(!text)return json({success:false,error:"Hint empty"},400);const m={id:hqId("message"),kind:"message",text:`🎓 Mikael's chess tip: ${text}`,status:"pending",createdAt:new Date().toISOString()};const xs=await hqMessages(env);xs.push(m);await saveArr(env,HQ_MESSAGE_INDEX,xs);await hqActivity(env,"🎓 Chess Hint","Mikael sent Lizzy a chess tip.");return json({success:true});}
  if(b.action==="hq_escape_solve"){
   if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);
-  const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();
+  const roomId=S(b.roomId,40)||"timeline", state=await escapeState(env,roomId);
   if(state.status!=="active")return json({success:false,error:"Start the room first."},409);
-  const stage=Math.max(1,Math.min(3,Number(b.stage||state.stage||1)));const answer=S(b.answer,30).replace(/\s+/g,"");const expected=state.stageInfo?.[stage]?.answer;state.attempts=Number(state.attempts||0)+1;
+  const stage=Math.max(1,Math.min(state.stageInfo?Object.keys(state.stageInfo).length:5,Number(b.stage||state.stage||1)));const answer=S(b.answer,80).replace(/\s+/g,"").toLowerCase();const expected=String(state.stageInfo?.[stage]?.answer||"").replace(/\s+/g,"").toLowerCase();state.attempts=Number(state.attempts||0)+1;
   if(answer!==expected)return json({success:true,correct:false,state});
   if(!Array.isArray(state.solvedStages))state.solvedStages=[];if(!state.solvedStages.includes(stage))state.solvedStages.push(stage);
-  if(stage<3){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}else{state.status="solved";state.progress="🎉 YOU ESCAPED! Lizzy and Mikael solved all three locks together.";}
-  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened by Mikael.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Mikael opened Lock ${stage}.`,{stage});return json({success:true,correct:true,state});
+  const total=Object.keys(state.stageInfo||{}).length;
+  if(stage<total){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}else{state.status="solved";state.progress=`🎉 YOU ESCAPED! ${state.roomTitle} is complete.`;}
+  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Mikael",text:`🔓 Lock ${stage} opened.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(escapeKey(roomId),JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Mikael opened Lock ${stage} in ${state.roomTitle}.`,{stage,roomId});return json({success:true,correct:true,state});
  }
+ if(b.action==="lizzy_escape_solve"){
+  const roomId=S(b.roomId,40)||"timeline", state=await escapeState(env,roomId);
+  if(state.status!=="active")return json({success:false,error:"The room has not been started yet."},409);
+  const stage=Math.max(1,Math.min(Object.keys(state.stageInfo||{}).length,Number(b.stage||state.stage||1)));const answer=S(b.answer,80).replace(/\s+/g,"").toLowerCase();const expected=String(state.stageInfo?.[stage]?.answer||"").replace(/\s+/g,"").toLowerCase();state.attempts=Number(state.attempts||0)+1;
+  if(answer!==expected)return json({success:true,correct:false,state});
+  if(!Array.isArray(state.solvedStages))state.solvedStages=[];if(!state.solvedStages.includes(stage))state.solvedStages.push(stage);
+  const total=Object.keys(state.stageInfo||{}).length;
+  if(stage<total){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}else{state.status="solved";state.progress=`🎉 YOU ESCAPED! ${state.roomTitle} is complete.`;}
+  state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Lizzy",text:`🔓 Lock ${stage} opened.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(escapeKey(roomId),JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Lizzy opened Lock ${stage} in ${state.roomTitle}.`,{stage,roomId});return json({success:true,correct:true,state});
+ }
+ if(b.action==="escape_hint"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const roomId=S(b.roomId,40)||"timeline",state=await escapeState(env,roomId),stage=Math.max(1,Math.min(Object.keys(state.stageInfo||{}).length,Number(state.stage||1)));return json({success:true,hint:state.stageInfo?.[stage]?.hint||"Compare your two clues."});}
+ if(b.action==="escape_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const roomId=S(b.roomId,40)||"timeline",state=defaultEscape(roomId);state.status="active";state.startedAt=new Date().toISOString();state.progress=`${state.roomTitle} is active. Talk to Lizzy and solve every lock.`;await env.LIZZY_CLAIMS.put(escapeKey(roomId),JSON.stringify(state));await hqActivity(env,"🔐 Escape Room",`Mikael started ${state.roomTitle}.`,{roomId});return json({success:true,state,rooms:Object.entries(ESCAPE_ROOMS).map(([id,r])=>({id,title:r.title,tag:r.tag,desc:r.desc,locks:r.locks.length}))});}
+ if(b.action==="escape_chat"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const roomId=S(b.roomId,40)||"timeline",state=await escapeState(env,roomId);state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Mikael",text:S(b.text,800),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(escapeKey(roomId),JSON.stringify(state));return json({success:true,state});}
+ if(b.action==="lizzy_escape_chat"){const roomId=S(b.roomId,40)||"timeline",state=await escapeState(env,roomId);state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Lizzy",text:S(b.text,800),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(escapeKey(roomId),JSON.stringify(state));return json({success:true,state});}
  if(b.action==="rap_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultRap();state.status="active";state.startedAt=new Date().toISOString();await putRap(env,state);await hqActivity(env,"🎤 Rap Battle","Mikael started a new Lizzy × Mikael rap battle.");return json({success:true,state,rounds:RAP_ROUNDS});}
  if(b.action==="hq_rap_submit"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapSubmitText(env,"mikael",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Mikael submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="lizzy_rap_submit"){const r=await rapSubmitText(env,"lizzy",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Lizzy submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
@@ -595,8 +573,6 @@ export default{async fetch(req,env){
  if(b.action==="lizzy_rap_audio"){const r=await rapSubmitAudio(env,"lizzy",b.audioBase64,b.mime,b.metrics||{});if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="hq_rap_next"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="lizzy_rap_next"){const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
- if(b.action==="escape_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultEscape();state.status="active";state.startedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Room","Mikael started the two-player escape room.");return json({success:true,state});}
- if(b.action==="escape_chat"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Mikael",text:S(b.text,600),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));return json({success:true,state});}
 
 /* =========================================================
    COMPLETE LIZZYOS TELEGRAM NOTIFICATION ROUTER

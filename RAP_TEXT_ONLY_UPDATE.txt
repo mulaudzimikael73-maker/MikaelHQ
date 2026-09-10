@@ -1,0 +1,7 @@
+RAP ARENA TEXT-ONLY UPDATE
+
+Removed all microphone, recording, playback, audio upload, transcription, and audio judging functionality.
+
+New flow: Start Battle -> write verse -> submit -> wait for opponent -> AI judges written verses automatically -> reveal winner -> next round.
+
+OPENAI_API_KEY is optional. If configured in Cloudflare Worker Secrets, it powers the neutral written-verse judge. If absent, the Worker uses its built-in written-bar scorer.

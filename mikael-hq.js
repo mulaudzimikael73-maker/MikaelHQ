@@ -114,59 +114,46 @@ $("refreshChess").onclick=loadChess;
 $("resetChess").onclick=async()=>{if(!confirm("Start a new chess game?"))return;try{await api("chess_reset");chessGame=new Chess();selected=null;loadChess()}catch(e){toast(e.message,false)}};
 $("sendHint").onclick=async()=>{const text=$("hintText").value.trim();if(!text)return;try{await api("send_chess_hint",{text});$("hintText").value="";toast("Hint sent to Lizzy 🎓")}catch(e){toast(e.message,false)}};
 
+let selectedEscapeRoom=localStorage.getItem("mikaelEscapeRoom")||"timeline", escapeRooms=[];
+function renderEscapeRoomsHQ(rooms){escapeRooms=rooms||[];const box=$("escapeRooms");if(!box)return;box.innerHTML=escapeRooms.map(r=>`<button class="escape-room-card ${r.id===selectedEscapeRoom?"active":""}" data-room="${esc(r.id)}"><span>${esc(r.tag)}</span><b>${esc(r.title)}</b><small>${r.locks} locks • ${esc(r.desc)}</small></button>`).join("");box.querySelectorAll("[data-room]").forEach(b=>b.onclick=()=>{selectedEscapeRoom=b.dataset.room;localStorage.setItem("mikaelEscapeRoom",selectedEscapeRoom);loadEscape()})}
 async function loadEscape(){
-  try{const d=await api("escape_state"),s=d.state||{},stage=Number(s.stage||1),info=s.stageInfo?.[stage];
-    $("mikaelClues").innerHTML=(s.mikaelClues||[]).map(c=>`<div class="clue">${esc(c)}</div>`).join("");
-    $("escapeStatus").innerHTML=`<p><b>${esc(s.status||"ready")}</b></p><p class="muted">${esc(s.progress||"Waiting for both agents.")}</p>`;
-    $("escapePuzzle").dataset.stage=String(stage);
-    $("escapePuzzle").innerHTML=s.status==="solved"?`<b>🎉 The door is open.</b><br>You escaped together. ❤️`:(s.status!=="active"?`<b>🔐 Room not started.</b><br>Press Start / Reset Room to begin.`:`<b>Lock ${stage}: ${esc(info?.title||"Current lock")}</b><br>Compare your clue with Lizzy's and enter the combined answer.`);
-    $("hqEscapeAnswer").disabled=s.status!=="active";$("hqEscapeSolve").disabled=s.status!=="active";
-    $("roomChat").innerHTML=(s.chat||[]).map(x=>`<div class="chat"><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join("");$("roomChat").scrollTop=$("roomChat").scrollHeight;
-  }catch(e){$("escapeStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}
+ try{const d=await api("escape_state",{roomId:selectedEscapeRoom}),s=d.state||{},total=Object.keys(s.stageInfo||{}).length||5,stage=Number(s.stage||1),info=s.stageInfo?.[stage],solved=Array.isArray(s.solvedStages)?s.solvedStages:[];
+  renderEscapeRoomsHQ(d.rooms);$("escapeRoomTitle").textContent=s.roomTitle||"Choose an escape room";$("escapeRoomTag").textContent=s.roomTag||"";$("escapeRoomDesc").textContent=s.roomDesc||"";
+  $("escapeProgress").innerHTML=Array.from({length:total},(_,i)=>i+1).map(n=>`<div class="lock-step ${solved.includes(n)?"solved":""} ${s.status==="active"&&stage===n&&!solved.includes(n)?"current":""}">${solved.includes(n)?"🔓":"🔒"} Lock ${n}</div>`).join("");
+  $("mikaelClues").innerHTML=(s.mikaelClues||[]).map((c,i)=>`<div class="clue"><b>Clue ${i+1}</b><br>${esc(c)}</div>`).join("");
+  $("escapeStatus").innerHTML=`<p><b>${esc(s.status||"ready")}</b></p><p class="muted">${esc(s.progress||"Waiting for both agents.")}</p>`;
+  $("escapePuzzle").dataset.stage=String(stage);$("escapePuzzle").innerHTML=s.status==="solved"?`<b>🎉 The door is open.</b><br>You escaped <b>${esc(s.roomTitle)}</b> together. ❤️`:(s.status!=="active"?`<b>🔐 Room not started.</b><br>Press Start / Reset Room to begin.`:`<b>Lock ${stage}: ${esc(info?.title||"Current lock")}</b><br>${esc(info?.hint||"Compare your clue with Lizzy's and enter the combined answer.")}`);
+  $("hqEscapeAnswer").disabled=s.status!=="active"||solved.includes(stage);$("hqEscapeSolve").disabled=s.status!=="active"||solved.includes(stage);$("hqEscapeAnswer").placeholder=s.status==="active"?"Combined answer":"Start the room first";
+  $("roomChat").innerHTML=(s.chat||[]).map(x=>`<div class="chat"><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join("");$("roomChat").scrollTop=$("roomChat").scrollHeight;
+ }catch(e){$("escapeStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}
 }
-async function solveEscapeHQ(){const answer=$("hqEscapeAnswer").value.trim();if(!answer)return;try{const d=await api("hq_escape_solve",{stage:Number($("escapePuzzle").dataset.stage||1),answer});$("hqEscapeAnswer").value="";$("hqEscapeResult").textContent=d.correct?"🔓 Correct — lock opened.":"❌ Not quite. Talk to Lizzy and combine both clues.";loadEscape()}catch(e){$("hqEscapeResult").textContent=e.message}}
-$("hqEscapeSolve").onclick=solveEscapeHQ;
-$("hqEscapeAnswer").onkeydown=e=>{if(e.key==="Enter")solveEscapeHQ()};
-
-$("startEscape").onclick=async()=>{try{await api("escape_start");loadEscape();toast("Escape room started 🔐")}catch(e){toast(e.message,false)}};
-$("sendChat").onclick=async()=>{const t=$("chatInput").value.trim();if(!t)return;try{await api("escape_chat",{text:t});$("chatInput").value="";loadEscape()}catch(e){toast(e.message,false)}};
-$("chatInput").onkeydown=e=>{if(e.key==="Enter")$("sendChat").click()};
+async function solveEscapeHQ(){const answer=$("hqEscapeAnswer").value.trim();if(!answer)return;try{const d=await api("hq_escape_solve",{roomId:selectedEscapeRoom,stage:Number($("escapePuzzle").dataset.stage||1),answer});$("hqEscapeAnswer").value="";$("hqEscapeResult").textContent=d.correct?"🔓 Correct — lock opened.":"❌ Not quite. Talk to Lizzy and combine both clues.";loadEscape()}catch(e){$("hqEscapeResult").textContent=e.message}}
+$("hqEscapeSolve").onclick=solveEscapeHQ;$("hqEscapeAnswer").onkeydown=e=>{if(e.key==="Enter")solveEscapeHQ()};
+$("startEscape").onclick=async()=>{try{await api("escape_start",{roomId:selectedEscapeRoom});loadEscape();toast("Escape room started 🔐")}catch(e){toast(e.message,false)}};
+$("sendChat").onclick=async()=>{const t=$("chatInput").value.trim();if(!t)return;try{await api("escape_chat",{roomId:selectedEscapeRoom,text:t});$("chatInput").value="";loadEscape()}catch(e){toast(e.message,false)}};$("chatInput").onkeydown=e=>{if(e.key==="Enter")$("sendChat").click()};
 
 
-let rapHQState=null,hqRecorder=null,hqChunks=[],hqStream=null,hqRecordStart=0,hqTimer=null,hqBlob=null;
+let rapHQState=null;
 function rapHQTotals(s){let l=0,m=0;Object.values(s.scores||{}).forEach(x=>{l+=Number(x.lizzy?.total||0);m+=Number(x.mikael?.total||0)});return [l,m]}
-function rapHQPhase(s,mine){const b=$("hqRapPhaseBadge");if(!b)return;b.textContent=s.status!=="active"?"BATTLE NOT STARTED":!mine?"STEP 1 • WRITE":!mine.audio?"STEP 2 • PERFORM":"STEP 3 • JUDGING";}
+function rapHQPhase(s,mine){const b=$("hqRapPhaseBadge");if(!b)return;b.textContent=s.status!=="active"?"BATTLE NOT STARTED":!mine?"STEP 1 • WRITE":s.phase==="revealed"?"STEP 3 • JUDGED":"STEP 2 • WAITING FOR OPPONENT";}
 function renderRapHQ(s,rounds){
  rapHQState=s;const n=Number(s.round||1),info=(rounds||[])[n-1]||{},[ls,ms]=rapHQTotals(s),mine=s.submissions?.mikael;
  $("hqLizzyScore").textContent=ls;$("hqMikaelScore").textContent=ms;$("hqRapRound").innerHTML=s.status==="solved"?"🏆 BATTLE COMPLETE":`ROUND ${n} / 5 <small>LIVE</small>`;$("hqRapTitle").textContent=`Round ${n} — ${info.title||""}`;$("hqRapPrompt").textContent=info.prompt||"";
  $("hqRapSubmit").disabled=s.status!=="active"||!!mine;$("hqRapText").disabled=s.status!=="active"||!!mine;rapHQPhase(s,mine);
- $("hqRapStatus").innerHTML=s.status!=="active"?"Waiting for Mikael to start the battle.":!mine?"🎤 Write your verse and submit it.":!mine.audio?"🔴 Written verse locked. Perform it into the mic!":s.phase==="revealed"?"⚖️ AI + audio judging complete.":"🕒 Your performance is in. Waiting for Lizzy…";
- $("hqRapRecorder").classList.toggle("hidden",!(s.status==="active"&&!!mine&&!mine.audio));
+ $("hqRapStatus").innerHTML=s.status!=="active"?"Waiting for Mikael to start the battle.":!mine?"🎤 Write your verse and submit it.":s.phase==="revealed"?"⚖️ AI written-bar judging complete.":s.submissions?.lizzy?"🕒 Both verses are in — judging…":"🔒 Your verse is submitted. Waiting for Lizzy…";
+ const wait=$("hqRapWaiting");if(wait)wait.textContent=s.status!=="active"?"":"Both players submit their written verses. The AI judge scores the round automatically once both are in.";
  if(s.phase==="revealed"){
    const sc=s.scores?.[n]||{},w=s.roundWinners?.[n-1],winner=w==="lizzy"?"🩷 LIZZY WINS THE ROUND":w==="mikael"?"🖤 MIKAEL WINS THE ROUND":"🤝 ROUND TIED",h=s.history?.[n-1]||{};
-   $("hqRapReveal").innerHTML=`<div class="winner">${winner}</div><div class="ai-verdict">🤖 AI + AUDIO JUDGING</div><div class="verses"><article><b>🩷 Lizzy — ${sc.lizzy?.total||0}/100</b><p>${esc(h.submissions?.lizzy?.text||"")}</p><small>${esc(sc.lizzy?.feedback||"")}</small></article><article><b>🖤 Mikael — ${sc.mikael?.total||0}/100</b><p>${esc(h.submissions?.mikael?.text||"")}</p><small>${esc(sc.mikael?.feedback||"")}</small></article></div>`;
+   $("hqRapReveal").innerHTML=`<div class="winner">${winner}</div><div class="ai-verdict">🤖 AI WRITTEN-BAR JUDGING</div><div class="verses"><article><b>🩷 Lizzy — ${sc.lizzy?.total||0}/100</b><p>${esc(h.submissions?.lizzy?.text||"")}</p><small>${esc(sc.lizzy?.feedback||"")}</small></article><article><b>🖤 Mikael — ${sc.mikael?.total||0}/100</b><p>${esc(h.submissions?.mikael?.text||"")}</p><small>${esc(sc.mikael?.feedback||"")}</small></article></div>`;
    $("hqRapNext").classList.remove("hidden");$("hqRapNext").textContent=n>=5?"🏆 Finish Battle":"Next Round →";
- }else{$("hqRapReveal").innerHTML=`<div class="waiting">${mine&&!mine.audio?"🎙️ Perform your submitted verse to continue.":mine?"🔒 Your performance is submitted. Waiting for Lizzy…":"The arena is ready. Waiting for both verses."}</div>`;$("hqRapNext").classList.add("hidden")}
+ }else{$("hqRapReveal").innerHTML=`<div class="waiting">${mine?"🔒 Your verse is locked. Waiting for Lizzy to submit her verse…":"The arena is ready. Waiting for both verses."}</div>`;$("hqRapNext").classList.add("hidden")}
  $("hqRapHistory").innerHTML=(s.history||[]).slice().reverse().map(h=>`<div class="history-row"><b>Round ${h.round} — ${esc(h.title)}</b><span>${h.winner==="lizzy"?"🩷 Lizzy":h.winner==="mikael"?"🖤 Mikael":"🤝 Tie"} · ${h.scores.lizzy.total}–${h.scores.mikael.total}</span></div>`).join("")||"<span class='empty'>No rounds judged yet.</span>";
 }
-async function hqBlobMetrics(blob,transcript=""){
- // Avoid AudioContext.decodeAudioData() here: recorded WebM/MP4 files can be
- // playable but still fail decoding in some browsers, which used to block submit.
- const duration=Math.max(0,(Date.now()-hqRecordStart)/1000);
- const words=(String(transcript).match(/\b\w+\b/g)||[]).length;
- return {duration:Math.min(45,duration),rms:0,peak:0,silenceRatio:0,speechRate:duration?words/duration:0,size:blob.size};
-}
-function hqDataUrl(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)})}
-function setupHQRecorder(){
- $("hqRapRecord").onclick=async()=>{try{if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined")throw new Error("This browser does not support microphone recording. Try Chrome or Edge over HTTPS.");hqStream=await navigator.mediaDevices.getUserMedia({audio:true});const type=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":(MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm");hqRecorder=new MediaRecorder(hqStream,{mimeType:type});hqChunks=[];hqRecorder.ondataavailable=e=>{if(e.data.size)hqChunks.push(e.data)};hqRecorder.onstop=()=>{hqBlob=new Blob(hqChunks,{type});$("hqRapPlayback").src=URL.createObjectURL(hqBlob);$("hqRapPlayback").classList.remove("hidden");$("hqRapSubmitAudio").classList.remove("hidden");$("hqRecordStatus").textContent="PERFORMANCE READY";$("hqRapRecord").classList.remove("hidden");$("hqRapStop").classList.add("hidden");hqStream?.getTracks().forEach(t=>t.stop())};hqRecorder.start(1000);hqRecordStart=Date.now();$("hqRecordLight").classList.add("live");$("hqRecordStatus").textContent="RECORDING… GO!";$("hqRapRecord").classList.add("hidden");$("hqRapStop").classList.remove("hidden");hqTimer=setInterval(()=>{const sec=Math.floor((Date.now()-hqRecordStart)/1000);$("hqRecordTimer").textContent=`00:${String(Math.min(45,sec)).padStart(2,"0")} / 00:45`;if(sec>=45)$("hqRapStop").click()},250)}catch(e){$("hqRapAudioResult").textContent="🎙️ Microphone access failed: "+e.message}};
- $("hqRapStop").onclick=()=>{if(hqRecorder&&hqRecorder.state!=="inactive"){hqRecorder.stop();clearInterval(hqTimer);$("hqRecordLight").classList.remove("live")}};
- $("hqRapSubmitAudio").onclick=async()=>{if(!hqBlob)return;try{$("hqRapSubmitAudio").disabled=true;$("hqRapAudioResult").textContent="🤖 Transcribing your performance…";const metrics=await hqBlobMetrics(hqBlob);const url=await hqDataUrl(hqBlob);const d=await api("hq_rap_audio",{audioBase64:url,mime:hqBlob.type,metrics});$("hqRapAudioResult").textContent=d.state.phase==="revealed"?"🔥 Both performances are in. The AI judge has decided!":"🎧 Performance submitted. Waiting for Lizzy…";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapAudioResult").textContent="Could not submit performance: "+e.message;$("hqRapSubmitAudio").disabled=false}};
-}
 async function loadRapHQ(){try{const d=await api("hq_rap_state");renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapStatus").textContent=e.message}}
-async function submitRapHQ(){const t=$("hqRapText").value.trim();if(!t)return;try{const d=await api("hq_rap_submit",{text:t});$("hqRapText").value="";$("hqRapResult").textContent="🔒 Written verse locked. Now perform it into the mic!";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
-async function nextRapHQ(){try{const d=await api("hq_rap_next");$("hqRapResult").textContent="";$("hqRapAudioResult").textContent="";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
-$("hqRapText").oninput=()=>$("hqRapCount").textContent=`${$("hqRapText").value.length} / 1600`;
-$("hqRapSubmit").onclick=submitRapHQ;$("hqRapNext").onclick=nextRapHQ;$("startRap").onclick=async()=>{try{const d=await api("rap_start");renderRapHQ(d.state,d.rounds);toast("Rap battle started 🎤")}catch(e){toast(e.message,false)}};setupHQRecorder();
+async function submitRapHQ(){const t=$("hqRapText").value.trim();if(!t)return;try{const d=await api("hq_rap_submit",{text:t});$("hqRapText").value="";$("hqRapResult").textContent=d.state.phase==="revealed"?"⚖️ Both verses are in. The AI judge has decided!":"🔒 Written verse submitted. Waiting for Lizzy…";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
+async function nextRapHQ(){try{const d=await api("hq_rap_next");$("hqRapResult").textContent="";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
+$("hqRapText").oninput=()=>$('hqRapCount').textContent=`${$("hqRapText").value.length} / 1600`;
+$("hqRapSubmit").onclick=submitRapHQ;$("hqRapNext").onclick=nextRapHQ;$("startRap").onclick=async()=>{try{const d=await api("rap_start");renderRapHQ(d.state,d.rounds);toast("Rap battle started 🎤")}catch(e){toast(e.message,false)}};
 
 async function loadActivity(){
   try{const d=await api("hq_activity");$("activityList").innerHTML=(d.activity||[]).map(x=>`<div class="activity"><b>${esc(x.type||"Activity")}</b><p>${esc(x.text||x.details||"")}</p><time>${time(x.createdAt)}</time></div>`).join("")||`<div class="card empty">Nothing yet.</div>`}

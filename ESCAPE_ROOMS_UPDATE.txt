@@ -1,0 +1,22 @@
+ESCAPE ROOMS UPDATE
+
+Added 6 co-op escape rooms:
+1. Our Timeline Heist — about us
+2. LizzyOS: System Breach — about us / website lore
+3. The Date Night Vault — about us / date memories
+4. The Clockwork Manor — hard random logic
+5. The Cipher Museum — hard random maths/ciphers
+6. Blackout Labyrinth — extreme random logic
+
+Each room has 5 locks, different clues for Lizzy and Mikael, shared chat, room selection, persistent Cloudflare KV state, and automatic lock validation.
+
+Flow:
+- Mikael selects a room in HQ and presses Start / Reset Room.
+- Lizzy selects the same room on the Co-Op page.
+- Each player sees only their own clue set.
+- They communicate through the room chat.
+- Either player can submit the combined answer for the current lock.
+- The next lock opens automatically.
+- Completing all 5 locks marks the room escaped.
+
+Important: deploy the updated cloudflare-worker.js as well as the website files. The escape-room data uses new KV keys (hq:escape:v2:<roomId>), so it will not overwrite the old prototype.
