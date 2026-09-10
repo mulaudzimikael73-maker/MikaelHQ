@@ -36,9 +36,9 @@ function show(view){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   $(view).classList.remove("hidden");
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
-  const titles={dashboard:"Good to see you, Mr Perfect.",letters:"Letters from Lizzy",chess:"Mikael × Lizzy Chess",escape:"Two-player escape room",create:"Leave something for Lizzy",activity:"Shared activity"};
+  const titles={dashboard:"Good to see you, Mr Perfect.",letters:"Letters from Lizzy",chess:"Mikael × Lizzy Chess",escape:"Two-player escape room",rap:"Mikael × Lizzy Rap Battle",create:"Leave something for Lizzy",activity:"Shared activity"};
   $("viewTitle").textContent=titles[view]||"Mikael HQ";
-  if(view==="letters")loadLetters();if(view==="chess")loadChess();if(view==="escape")loadEscape();if(view==="activity")loadActivity();
+  if(view==="letters")loadLetters();if(view==="chess")loadChess();if(view==="escape")loadEscape();if(view==="rap")loadRapHQ();if(view==="activity")loadActivity();
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
 document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
@@ -132,6 +132,18 @@ $("startEscape").onclick=async()=>{try{await api("escape_start");loadEscape();to
 $("sendChat").onclick=async()=>{const t=$("chatInput").value.trim();if(!t)return;try{await api("escape_chat",{text:t});$("chatInput").value="";loadEscape()}catch(e){toast(e.message,false)}};
 $("chatInput").onkeydown=e=>{if(e.key==="Enter")$("sendChat").click()};
 
+
+let rapHQState=null;
+function rapHQTotals(s){let l=0,m=0;Object.values(s.scores||{}).forEach(x=>{l+=Number(x.lizzy?.total||0);m+=Number(x.mikael?.total||0)});return [l,m]}
+function renderRapHQ(s,rounds){rapHQState=s;const n=Number(s.round||1),info=(rounds||[])[n-1]||{},[ls,ms]=rapHQTotals(s);$("hqRapScore").textContent=`${ls} — ${ms}`;$("hqRapRound").textContent=s.status==="solved"?"🏆 Battle complete":`Round ${n} / 5 — ${info.title||""}`;$("hqRapPrompt").textContent=info.prompt||"";const mine=s.submissions?.mikael;$("hqRapSubmit").disabled=s.status!=="active"||s.phase!=="writing"||!!mine;$("hqRapText").disabled=s.status!=="active"||s.phase!=="writing"||!!mine;$("hqRapStatus").innerHTML=s.status!=="active"?"Waiting for Mikael to start the battle.":s.phase==="writing"?(mine?"🕒 Your verse is locked in. Waiting for Lizzy…":"🎤 Write your verse and submit it."):"⚖️ Both verses submitted — judged automatically.";
+if(s.phase==="revealed"){const sc=s.scores?.[n]||{},w=s.roundWinners?.[n-1],winner=w==="lizzy"?"🩷 LIZZY WINS THE ROUND":w==="mikael"?"🖤 MIKAEL WINS THE ROUND":"🤝 ROUND TIED";$("hqRapReveal").innerHTML=`<div class="winner">${winner}</div><div class="verses"><article><b>🩷 Lizzy — ${sc.lizzy?.total||0}/100</b><p>${esc(s.history?.[n-1]?.submissions?.lizzy?.text||"")}</p><small>${esc(sc.lizzy?.feedback||"")}</small></article><article><b>🖤 Mikael — ${sc.mikael?.total||0}/100</b><p>${esc(s.history?.[n-1]?.submissions?.mikael?.text||"")}</p><small>${esc(sc.mikael?.feedback||"")}</small></article></div>`;$("hqRapNext").classList.remove("hidden");$("hqRapNext").textContent=n>=5?"🏆 Finish Battle":"Next Round →";}else {$("hqRapReveal").innerHTML=`<div class="waiting">${mine?"Waiting for Lizzy to submit her verse…":"Waiting for both verses…"}</div>`;$("hqRapNext").classList.add("hidden");}
+$("hqRapHistory").innerHTML=(s.history||[]).slice().reverse().map(h=>`<div class="history-row"><b>Round ${h.round} — ${esc(h.title)}</b><span>${h.winner==="lizzy"?"🩷 Lizzy":h.winner==="mikael"?"🖤 Mikael":"🤝 Tie"} · ${h.scores.lizzy.total}–${h.scores.mikael.total}</span></div>`).join("")||"<span class='empty'>No rounds judged yet.</span>";}
+async function loadRapHQ(){try{const d=await api("hq_rap_state");renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapStatus").textContent=e.message}}
+async function submitRapHQ(){const t=$("hqRapText").value.trim();if(!t)return;try{const d=await api("hq_rap_submit",{text:t});$("hqRapText").value="";$("hqRapResult").textContent=d.state.phase==="revealed"?"⚖️ Round judged.":"🔒 Submitted. Waiting for Lizzy…";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
+async function nextRapHQ(){try{const d=await api("hq_rap_next");$("hqRapResult").textContent="";renderRapHQ(d.state,d.rounds)}catch(e){$("hqRapResult").textContent=e.message}}
+$("hqRapText").oninput=()=>$("hqRapCount").textContent=`${$("hqRapText").value.length} / 1600`;
+$("hqRapSubmit").onclick=submitRapHQ;$("hqRapNext").onclick=nextRapHQ;$("startRap").onclick=async()=>{try{const d=await api("rap_start");renderRapHQ(d.state,d.rounds);toast("Rap battle started 🎤")}catch(e){toast(e.message,false)}};
+
 async function loadActivity(){
   try{const d=await api("hq_activity");$("activityList").innerHTML=(d.activity||[]).map(x=>`<div class="activity"><b>${esc(x.type||"Activity")}</b><p>${esc(x.text||x.details||"")}</p><time>${time(x.createdAt)}</time></div>`).join("")||`<div class="card empty">Nothing yet.</div>`}
   catch(e){$("activityList").innerHTML=`<div class="card err">${esc(e.message)}</div>`}
@@ -140,5 +152,5 @@ $("refreshLetters").onclick=loadLetters;$("refreshActivity").onclick=loadActivit
 $("messageForm").onsubmit=async e=>{e.preventDefault();try{await api("hq_message",{text:$("messageText").value.trim()});$("messageText").value="";$("messageResult").innerHTML="<span class='ok'>Sent to Lizzy ❤️</span>";}catch(x){$("messageResult").innerHTML=`<span class='err'>${esc(x.message)}</span>`}};
 $("questionForm").onsubmit=async e=>{e.preventDefault();try{await api("hq_question",{text:$("questionText").value.trim()});$("questionText").value="";$("questionResult").innerHTML="<span class='ok'>Question sent.</span>";}catch(x){$("questionResult").innerHTML=`<span class='err'>${esc(x.message)}</span>`}};
 
-function start(){show("dashboard");loadDashboard();loadLetters();syncTimer=setInterval(()=>{loadDashboard();if(!document.getElementById("chess").classList.contains("hidden"))loadChess();if(!document.getElementById("escape").classList.contains("hidden"))loadEscape()},5000)}
+function start(){show("dashboard");loadDashboard();loadLetters();syncTimer=setInterval(()=>{loadDashboard();if(!document.getElementById("chess").classList.contains("hidden"))loadChess();if(!document.getElementById("escape").classList.contains("hidden"))loadEscape();if(!document.getElementById("rap").classList.contains("hidden"))loadRapHQ()},5000)}
 })();

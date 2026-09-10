@@ -1,12 +1,21 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Co-Op World — LizzyOS</title><link rel="stylesheet" href="coop.css"></head><body>
 <header><div><span>❤️ OUR WORLD</span><h1>Mikael × Lizzy</h1><p>A place where you actually play together.</p></div><button id="back">← Back</button></header>
 <main>
-<section class="tabs"><button class="active" data-tab="chess">♟️ Chess</button><button data-tab="escape">🔐 Escape Room</button></section>
+<section class="tabs"><button class="active" data-tab="chess">♟️ Chess</button><button data-tab="escape">🔐 Escape Room</button><button data-tab="rap">🎤 Rap Battle</button></section>
 <section id="chess" class="tab">
 <div class="intro"><div><span class="pill">LEARNING MODE</span><h2>♟️ Mikael Teaches Lizzy Chess</h2><p>You are White. Mikael is Black. You can ask him for help without giving up control of your move.</p></div><div id="turn" class="turn">Loading…</div></div>
 <div class="game-layout"><div class="chess-board-wrap"><div id="board" class="board"></div><div class="legend">🌸 Lizzy = White &nbsp; • &nbsp; 🖤 Mikael = Black</div></div>
 <div class="panel"><h3>🎓 Need help?</h3><div class="help-buttons"><button id="pieceHelpBtn">♟️ How does this piece move?</button><button id="hintHelpBtn">💡 Give me a hint.</button><button id="rescueHelpBtn">🆘 Rescue me 😭</button></div><textarea id="customHelp" placeholder="Ask Mikael something specific…"></textarea><button class="send" id="askHelp">💬 Ask Mikael</button><div id="hintBox" class="hint"></div><hr><h3>💌 Mikael's replies</h3><div id="mikaelInbox" class="inbox"><span class="empty">Waiting for Mikael…</span></div><hr><h3>📜 Moves</h3><div id="moves">No moves yet.</div></div></div>
 </section>
+
+<section id="rap" class="tab hidden">
+<div class="intro"><div><span class="pill">TWO PLAYER • LIVE JUDGING</span><h2>🎤 Lizzy × Mikael Rap Arena</h2><p>The website is the judge. You write your verse, Mikael writes his, and the system decides who wins each round.</p></div><div id="rapStatus" class="turn">Waiting…</div></div>
+<div class="rap-scorebar"><div>🩷 Lizzy <b id="lizzyScore">0</b></div><div id="rapRound">Round 1</div><div>🖤 Mikael <b id="mikaelScore">0</b></div></div>
+<div class="rap-prompt panel"><span class="pill">CURRENT CHALLENGE</span><h3 id="rapTitle">Warm-Up</h3><p id="rapPrompt">Waiting for Mikael to start the battle…</p></div>
+<div class="game-layout rap-layout"><div class="panel rap-write"><h3>🩷 Your verse</h3><textarea id="rapText" maxlength="1600" placeholder="Write your bars…"></textarea><div class="rap-meta"><span id="rapCount">0 / 1600</span><button class="send" id="rapSubmit">Submit Verse</button></div><div id="rapResult" class="hint"></div></div><div class="panel"><h3>🎤 Battle status</h3><div id="rapReveal" class="rap-reveal">Waiting for both verses…</div><button class="send hidden" id="rapNext">Next Round →</button></div></div>
+<div class="panel"><h3>🏆 Round history</h3><div id="rapHistory" class="rap-history"></div></div>
+</section>
+
 <section id="escape" class="tab hidden">
 <div class="intro"><div><span class="pill">TWO PLAYER • LIVE PUZZLE</span><h2>🔐 The Locked House</h2><p>Three locks. You have half the clues. Mikael has the other half. Talk, combine the clues, and escape together.</p></div><div id="escapeStatus" class="turn">Waiting…</div></div>
 <div class="escape-progress"><div class="lock-step" id="lock1">🔒 Lock 1</div><div class="lock-step" id="lock2">🔒 Lock 2</div><div class="lock-step" id="lock3">🔒 Lock 3</div></div>

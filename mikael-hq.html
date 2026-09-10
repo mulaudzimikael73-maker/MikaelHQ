@@ -28,6 +28,7 @@
       <button data-view="letters">💌 Letters <span id="letterBadge"></span></button>
       <button data-view="chess">♟️ Co-Op Chess</button>
       <button data-view="escape">🔐 Escape Room</button>
+      <button data-view="rap">🎤 Rap Battle</button>
       <button data-view="create">✍️ Create</button>
       <button data-view="activity">📡 Activity</button>
     </nav>
@@ -80,6 +81,17 @@
         <div class="card"><h3>🗺️ Mikael's clues</h3><p class="muted">These are your clues. Lizzy has the other half.</p><div id="mikaelClues" class="clues"></div></div>
         <div class="card"><h3>🔢 Current lock</h3><div id="escapePuzzle" class="puzzle-card">Waiting…</div><div class="chat-row"><input id="hqEscapeAnswer" inputmode="numeric" placeholder="Combined answer"><button class="primary" id="hqEscapeSolve">Unlock</button></div><div id="hqEscapeResult" class="muted"></div><hr><h3>📡 Team status</h3><div id="escapeStatus"></div><div class="room-chat" id="roomChat"></div><div class="chat-row"><input id="chatInput" placeholder="Tell Lizzy what you found…"><button id="sendChat">Send</button></div></div>
       </div>
+    </section>
+
+
+    <section id="rap" class="view hidden">
+      <div class="section-intro"><div><span class="pill">2 PLAYER • LIVE JUDGING</span><h2>🎤 Mikael × Lizzy Rap Battle</h2><p>Write your bars. Lizzy writes hers. The website judges every round automatically.</p></div><div class="rap-score" id="hqRapScore">0 — 0</div></div>
+      <div class="rap-hero card"><div><b id="hqRapRound">Round 1 — Warm-Up</b><p id="hqRapPrompt">Loading challenge…</p></div><button class="primary" id="startRap">Start / Reset Battle</button></div>
+      <div class="rap-grid">
+        <div class="card rap-write"><h3>🖤 Your verse</h3><textarea id="hqRapText" maxlength="1600" placeholder="Write your bars here…"></textarea><div class="rap-meta"><span id="hqRapCount">0 / 1600</span><button class="primary" id="hqRapSubmit">Submit Verse</button></div><div id="hqRapResult" class="muted"></div></div>
+        <div class="card"><h3>📡 Battle status</h3><div id="hqRapStatus" class="rap-status">Waiting…</div><hr><div id="hqRapReveal" class="rap-reveal"></div><button class="primary hidden" id="hqRapNext">Next Round →</button></div>
+      </div>
+      <div class="card rap-history-card"><h3>🏆 Battle history</h3><div id="hqRapHistory" class="rap-history"></div></div>
     </section>
 
     <section id="create" class="view hidden">

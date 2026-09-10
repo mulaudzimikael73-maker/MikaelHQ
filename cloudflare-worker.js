@@ -66,6 +66,61 @@ const defaultEscape=()=>({
  updatedAt:new Date().toISOString()
 });
 
+
+const HQ_RAP_KEY="hq:rap:v1";
+const RAP_ROUNDS=[
+ {title:"Warm-Up",prompt:"Write a confident 4-line verse introducing yourself and your opponent."},
+ {title:"Word Drop",prompt:"Use ALL THREE words naturally: bowling, attitude, champion."},
+ {title:"Roast Battle",prompt:"Roast your opponent cleverly without being genuinely cruel."},
+ {title:"Counterattack",prompt:"Respond to your opponent's last verse with a clever comeback."},
+ {title:"Final Round",prompt:"Give your strongest 4–8 line verse. No extra rules. Make it memorable."}
+];
+const defaultRap=()=>({id:"rap-main",status:"ready",round:1,phase:"writing",submissions:{lizzy:null,mikael:null},scores:{},roundWinners:[],history:[],chat:[],updatedAt:new Date().toISOString()});
+const rapWords=t=>String(t||"").toLowerCase().match(/[a-z0-9']+/g)||[];
+const rapScore=(text,round,opponent="")=>{
+ const raw=String(text||"").trim(), w=rapWords(raw), unique=new Set(w);
+ if(!w.length)return {total:0,relevance:0,creativity:0,humour:0,wordplay:0,rhyme:0,impact:0,feedback:"No verse submitted."};
+ const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean), ends=lines.map(x=>{const a=rapWords(x);return a[a.length-1]||""}).filter(Boolean);
+ let rhyme=0; for(let i=1;i<ends.length;i++){const a=ends[i-1],b=ends[i];if(a===b||a.slice(-3)===b.slice(-3)||a.slice(-2)===b.slice(-2))rhyme++;}
+ const rhymeScore=Math.min(15,Math.round((rhyme/Math.max(1,ends.length-1))*15)+Math.min(4,Math.floor(lines.length/2)));
+ const p=RAP_ROUNDS[round-1].prompt.toLowerCase(), pw=rapWords(p);
+ const promptHits=pw.filter(x=>x.length>3&&w.includes(x)).length;
+ const required=round===2?["bowling","attitude","champion"]:[];
+ const requiredHits=required.filter(x=>w.includes(x)).length;
+ const relevance=Math.min(20,8+Math.min(10,promptHits*3)+requiredHits*2);
+ const creativity=Math.min(20,7+Math.min(10,unique.size>=Math.min(18,w.length)?10:Math.floor(unique.size/2))+Math.min(3,Math.floor(lines.length/2)));
+ const humour=Math.min(15,round===3?7+Math.min(8,(raw.match(/\b(lol|haha|funny|roast|burn|clown|attitude|perfect|humble|win|lose|better)\b/gi)||[]).length):7+Math.min(5,(raw.match(/[!?]/g)||[]).length));
+ const wordplay=Math.min(15,5+Math.min(7,Math.floor(unique.size/5))+Math.min(3,(raw.match(/\b(and|but|because|like|than|never|always)\b/gi)||[]).length));
+ const impact=Math.min(15,6+Math.min(6,Math.floor(w.length/8))+Math.min(3,Math.floor(lines.length/2)));
+ let total=Math.min(100,relevance+creativity+humour+wordplay+rhymeScore+impact);
+ let feedback=round===3?(total>=80?"Sharp roast with strong punchlines.":total>=65?"Good roast energy; a few bars could hit harder.":"Keep the roast clever and build a stronger punchline."):round===5?(total>=85?"Final-round energy. Memorable finish.":total>=70?"Solid final verse with room for a bigger finish.":"Build the ending around one unforgettable bar."):total>=80?"Strong response with good structure and energy.":total>=65?"Good effort. Sharpen the wording and punchlines.":"Focus more tightly on the round's challenge.";
+ return {total,relevance,creativity,humour,wordplay,rhyme:rhymeScore,impact,feedback};
+};
+async function rapState(env){return await env.LIZZY_CLAIMS.get(HQ_RAP_KEY,{type:"json"})||defaultRap();}
+async function putRap(env,state){state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_RAP_KEY,JSON.stringify(state));}
+async function rapSubmit(env,player,text){
+ const state=await rapState(env); if(state.status!=="active")return {error:"The rap battle has not started yet."};
+ if(state.phase!=="writing")return {error:"This round has already been judged."};
+ const clean=S(text,1600); if(!clean)return {error:"Write a verse first."};
+ state.submissions=state.submissions||{}; if(state.submissions[player])return {error:"You already submitted this round."};
+ state.submissions[player]={text:clean,submittedAt:new Date().toISOString()};
+ if(state.submissions.lizzy&&state.submissions.mikael){
+   const a=rapScore(state.submissions.lizzy.text,state.round,state.submissions.mikael.text), b=rapScore(state.submissions.mikael.text,state.round,state.submissions.lizzy.text);
+   let winner=a.total===b.total?"tie":(a.total>b.total?"lizzy":"mikael");
+   state.scores=state.scores||{};state.scores[state.round]={lizzy:a,mikael:b};
+   state.roundWinners=Array.isArray(state.roundWinners)?state.roundWinners:[];state.roundWinners.push(winner);
+   state.history=Array.isArray(state.history)?state.history:[];state.history.push({round:state.round,title:RAP_ROUNDS[state.round-1].title,prompt:RAP_ROUNDS[state.round-1].prompt,submissions:state.submissions,scores:{lizzy:a,mikael:b},winner});
+   state.phase="revealed";
+ }
+ await putRap(env,state);return {state};
+}
+async function rapNext(env){
+ const state=await rapState(env);if(state.status!=="active")return {error:"Battle is not active."};
+ if(state.phase!=="revealed")return {error:"Both verses must be submitted before the next round."};
+ if(state.round>=RAP_ROUNDS.length){state.status="solved";state.phase="finished";await putRap(env,state);return {state};}
+ state.round++;state.phase="writing";state.submissions={lizzy:null,mikael:null};await putRap(env,state);return {state};
+}
+
 const shelfStateKey=itemId=>`secret_shelf:item:${itemId}:latest`;
 async function putShelfState(env,c){
  if(!c?.itemId)return;
@@ -299,12 +354,14 @@ export default{async fetch(req,env){
  if(req.method==="GET"){
    if(u.searchParams.get("action")==="coop_chess"){const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess();return json({success:true,state});}
    if(u.searchParams.get("action")==="coop_escape"){const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();return json({success:true,state});}
+   if(u.searchParams.get("action")==="coop_rap"){const state=await rapState(env);return json({success:true,state,rounds:RAP_ROUNDS});}
    if(u.searchParams.get("action")==="lizzy_messages"){const messages=await hqMessages(env);return json({success:true,messages:messages.filter(x=>x.status!=="handled").slice(-50)});}
    if(u.searchParams.get("action")==="hq_ping"){if(!hqOnly(req,env))return json({success:false,error:"Invalid HQ key"},401);return json({success:true});}
    if(u.searchParams.get("action")==="hq_letters"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,letters:await hqLetters(env)});}
    if(u.searchParams.get("action")==="hq_dashboard"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const letters=await hqLetters(env),msgs=await hqMessages(env),chess=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),activity=await arrKV(env,HQ_ACTIVITY_INDEX);return json({success:true,unreadLetters:letters.filter(x=>x.status==="unread").length,openQuestions:msgs.filter(x=>x.kind==="question"&&x.status==="open").length,activeGames:chess.status==="active"?1:0,activityCount:activity.length,latestLetter:letters[0]||null,chess});}
    if(u.searchParams.get("action")==="chess_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),ids=await arrKV(env,HQ_CHESS_HELP_INDEX),requests=[];for(const x of ids){const r=await env.LIZZY_CLAIMS.get(`hq:chesshelp:${x}`,{type:"json"});if(r&&r.status==="open")requests.push(r);}return json({success:true,state,requests});}
    if(u.searchParams.get("action")==="escape_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape()});}
+   if(u.searchParams.get("action")==="hq_rap_state"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await rapState(env),rounds:RAP_ROUNDS});}
    if(u.searchParams.get("action")==="hq_activity"){if(!hqOnly(req,env))return json({success:false,error:"Unauthorized"},401);return json({success:true,activity:(await arrKV(env,HQ_ACTIVITY_INDEX)).slice(-100).reverse()});}
    if(u.searchParams.get("mikaelTokens")==="1"){
      const state=await getMikaelTokenState(env);
@@ -442,6 +499,7 @@ export default{async fetch(req,env){
  if(b.action==="hq_ping"){return hqOnly(req,env,b)?json({success:true}):json({success:false,error:"Invalid HQ key"},401);}
  if(b.action==="hq_letters"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,letters:await hqLetters(env)});}
  if(b.action==="hq_dashboard"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const letters=await hqLetters(env),msgs=await hqMessages(env),chess=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),activity=await arrKV(env,HQ_ACTIVITY_INDEX);return json({success:true,unreadLetters:letters.filter(x=>x.status==="unread").length,openQuestions:msgs.filter(x=>x.kind==="question"&&x.status==="open").length,activeGames:chess.status==="active"?1:0,activityCount:activity.length,latestLetter:letters[0]||null,chess});}
+ if(b.action==="hq_rap_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await rapState(env),rounds:RAP_ROUNDS});}
  if(b.action==="chess_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_CHESS_KEY,{type:"json"})||defaultChess(),ids=await arrKV(env,HQ_CHESS_HELP_INDEX),requests=[];for(const x of ids){const r=await env.LIZZY_CLAIMS.get(`hq:chesshelp:${x}`,{type:"json"});if(r&&r.status==="open")requests.push(r);}return json({success:true,state,requests});}
  if(b.action==="escape_state"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,state:await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape()});}
  if(b.action==="hq_activity"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);return json({success:true,activity:(await arrKV(env,HQ_ACTIVITY_INDEX)).slice(-100).reverse()});}
@@ -494,6 +552,11 @@ export default{async fetch(req,env){
   if(stage<3){state.stage=stage+1;state.progress=`Lock ${stage} opened. Lock ${stage+1} is waiting.`;}else{state.status="solved";state.progress="🎉 YOU ESCAPED! Lizzy and Mikael solved all three locks together.";}
   state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"System",text:`🔓 Lock ${stage} opened by Mikael.`,createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Solved",`Mikael opened Lock ${stage}.`,{stage});return json({success:true,correct:true,state});
  }
+ if(b.action==="rap_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultRap();state.status="active";state.startedAt=new Date().toISOString();await putRap(env,state);await hqActivity(env,"🎤 Rap Battle","Mikael started a new Lizzy × Mikael rap battle.");return json({success:true,state,rounds:RAP_ROUNDS});}
+ if(b.action==="hq_rap_submit"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapSubmit(env,"mikael",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Mikael submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="lizzy_rap_submit"){const r=await rapSubmit(env,"lizzy",b.text);if(r.error)return json({success:false,error:r.error},409);await hqActivity(env,"🎤 Rap Battle",r.state.phase==="revealed"?`Round ${r.state.round} judged.`:"Lizzy submitted a verse.");return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="hq_rap_next"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
+ if(b.action==="lizzy_rap_next"){const r=await rapNext(env);if(r.error)return json({success:false,error:r.error},409);return json({success:true,...r,rounds:RAP_ROUNDS});}
  if(b.action==="escape_start"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=defaultEscape();state.status="active";state.startedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));await hqActivity(env,"🔐 Escape Room","Mikael started the two-player escape room.");return json({success:true,state});}
  if(b.action==="escape_chat"){if(!hqOnly(req,env,b))return json({success:false,error:"Unauthorized"},401);const state=await env.LIZZY_CLAIMS.get(HQ_ESCAPE_KEY,{type:"json"})||defaultEscape();state.chat=Array.isArray(state.chat)?state.chat:[];state.chat.push({from:"Mikael",text:S(b.text,600),createdAt:new Date().toISOString()});state.chat=state.chat.slice(-100);state.updatedAt=new Date().toISOString();await env.LIZZY_CLAIMS.put(HQ_ESCAPE_KEY,JSON.stringify(state));return json({success:true,state});}
 
