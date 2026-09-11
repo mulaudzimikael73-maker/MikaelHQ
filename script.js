@@ -4702,14 +4702,104 @@ if (typeof lizzyTelegramNotify === "function") window.lizzyTelegramNotify = lizz
     }
     $("aboutLizzyReroll")?.addEventListener("click",()=>rollCompliment(persona()));
 
+    // Additional personality pop-alerts. These sit alongside the existing
+    // error/warning system and do not replace or alter the original pools.
+    const SYS_EXTRA_ALERTS = {
+        "Lizzy": [
+            ["💗 HEART ALERT","Heart alert: Mikael has been thought about again. This is becoming a pattern."],
+            ["📡 SYSTEM NOTICE","LizzyOS notice: today looks suspiciously good on you. 💗"],
+            ["🚨 SECURITY ALERT","Security alert: a dangerous amount of happiness has entered the system."],
+            ["💗 HEART ALERT","Butterfly activity has been detected. Please remain adorable."],
+            ["📡 SYSTEM NOTICE","System notice: compliment incoming. Please do not dodge it."],
+            ["🚨 SECURITY ALERT","Security breach: someone has stolen another smile. Investigation pending."],
+            ["💗 HEART ALERT","Emotional support systems are fully operational. 💗"],
+            ["📡 SYSTEM NOTICE","Reminder: you are allowed to have a soft day today."],
+            ["🚨 SECURITY ALERT","Unauthorized levels of sweetness detected in the desktop area."],
+            ["💗 HEART ALERT","Mikael-related thoughts have entered the queue. Estimated wait: none."],
+            ["📡 SYSTEM NOTICE","LizzyOS recommends: smile first, overthink later."],
+            ["🚨 SECURITY ALERT","Warning to the system: Lizzy is looking way too cute today."],
+            ["💗 HEART ALERT","Heart storage is nearly full. Please make room for more happy memories."],
+            ["📡 SYSTEM NOTICE","Today's official status: precious. No further testing required."],
+            ["🚨 SECURITY ALERT","Cuteness perimeter breached. All nearby systems have been affected. 💗"]
+        ],
+        "Princess Four Eyes": [
+            ["💗 HEART ALERT","Princess Four Eyes has entered the system. Softness levels rising. 👓💗"],
+            ["📡 SYSTEM NOTICE","Princess status confirmed. The system is now behaving respectfully."],
+            ["🚨 SECURITY ALERT","Security notice: glasses detected. Adorableness is not contained."],
+            ["💗 HEART ALERT","Heart levels are dangerously wholesome. Continue carefully, Princess."],
+            ["📡 SYSTEM NOTICE","Your glasses have once again made the system approximately 37% cuter."],
+            ["🚨 SECURITY ALERT","Angel detected. Security has chosen not to interfere. 👼"],
+            ["💗 HEART ALERT","Soft feelings detected behind the glasses. Diagnosis: adorable."],
+            ["📡 SYSTEM NOTICE","Princess Four Eyes has been cleared for unlimited gentleness."],
+            ["🚨 SECURITY ALERT","Warning: one very pretty girl is approaching the command centre."],
+            ["💗 HEART ALERT","Mikael appreciation levels are quietly increasing. 👓💕"],
+            ["📡 SYSTEM NOTICE","Official reminder: being this sweet is a full-time job."],
+            ["🚨 SECURITY ALERT","Four-eye surveillance is active. Nothing gets past those glasses."],
+            ["💗 HEART ALERT","Comfort protocol activated. Princess Four Eyes is officially precious."],
+            ["📡 SYSTEM NOTICE","System update: glasses remain iconic. No further changes required."],
+            ["🚨 SECURITY ALERT","Cuteness has breached containment. The glasses are not helping. 👓💗"]
+        ],
+        "Little Miss Attitude": [
+            ["💗 HEART ALERT","Heart alert: attitude levels are high, but somebody still has a soft side. Don't tell anyone."],
+            ["📡 SYSTEM NOTICE","System notice: Mikael has been warned. Again. You're welcome."],
+            ["🚨 SECURITY ALERT","Security alert: eye-roll detected from approximately 12 metres away."],
+            ["💗 HEART ALERT","Suspicious softness detected. Little Miss Attitude denies everything."],
+            ["📡 SYSTEM NOTICE","Reminder: being right is not technically a personality trait. Probably."],
+            ["🚨 SECURITY ALERT","Danger: one raised eyebrow has been deployed."],
+            ["💗 HEART ALERT","Secretly caring levels have exceeded public-denial limits. 😏"],
+            ["📡 SYSTEM NOTICE","Today's attitude has been rated: unnecessarily impressive."],
+            ["🚨 SECURITY ALERT","Mikael's excuses have been denied entry at the border."],
+            ["💗 HEART ALERT","A tiny amount of sweetness has been detected. Investigation ongoing."],
+            ["📡 SYSTEM NOTICE","Current mood: don't test me. System understands completely."],
+            ["🚨 SECURITY ALERT","Sass detected. Protective equipment is recommended."],
+            ["💗 HEART ALERT","Mikael remains surprisingly high on the approved-person list. Suspicious."],
+            ["📡 SYSTEM NOTICE","Official status: dramatic, competitive and probably correct."],
+            ["🚨 SECURITY ALERT","Attitude perimeter breached. Everyone has been notified. 😏"]
+        ],
+        "Agent Yelizaveta": [
+            ["💗 HEART ALERT","HEART ALERT: emotional attachment detected. Agent is advised to deny everything."],
+            ["📡 SYSTEM NOTICE","SYSTEM NOTICE: Agent Yelizaveta remains operational. Surveillance continues."],
+            ["🚨 SECURITY ALERT","SECURITY ALERT: Agent Mikhail has entered restricted airspace."],
+            ["💗 HEART ALERT","CLASSIFIED: soft feelings detected. File sealed immediately."],
+            ["📡 SYSTEM NOTICE","FIELD NOTICE: mission confidence remains unnecessarily high."],
+            ["🚨 SECURITY ALERT","THREAT DETECTED: charm levels associated with Agent Mikhail exceed safe limits."],
+            ["💗 HEART ALERT","EMOTIONAL INTELLIGENCE REPORT: suspiciously positive findings."],
+            ["📡 SYSTEM NOTICE","COMMAND UPDATE: all agents are reminded to maintain operational composure."],
+            ["🚨 SECURITY ALERT","BREACH: classified information almost became a casual conversation."],
+            ["💗 HEART ALERT","CLASSIFIED HEART ACTIVITY: no further questions will be answered."],
+            ["📡 SYSTEM NOTICE","MISSION UPDATE: Agent Yelizaveta is three steps ahead. As usual."],
+            ["🚨 SECURITY ALERT","ALERT: Agent Mikhail's confidence has triggered automatic surveillance."],
+            ["💗 HEART ALERT","FIELD REPORT: feelings remain inconclusive. Suspiciously inconclusive."],
+            ["📡 SYSTEM NOTICE","STATUS: operational, observant and mildly unimpressed."],
+            ["🚨 SECURITY ALERT","MAXIMUM ALERT: someone attempted to bypass Agent Yelizaveta's clearance."]
+        ]
+    };
+
+    const EXTRA_ALERT_META = {
+        "💗 HEART ALERT": "heart",
+        "📡 SYSTEM NOTICE": "notice",
+        "🚨 SECURITY ALERT": "security"
+    };
+
     function showSystemAlert(kind){
         const p = persona();
-        const pool = (kind==="error" ? SYS_ERRORS : SYS_WARNINGS)[p] || (kind==="error" ? SYS_ERRORS : SYS_WARNINGS)["Little Miss Attitude"];
-        const message = pool[Math.floor(Math.random()*pool.length)];
+        let heading, message, popupKind;
+        if(kind === "error" || kind === "warning"){
+            const pool = (kind==="error" ? SYS_ERRORS : SYS_WARNINGS)[p] || (kind==="error" ? SYS_ERRORS : SYS_WARNINGS)["Little Miss Attitude"];
+            message = pool[Math.floor(Math.random()*pool.length)];
+            heading = kind==="error" ? "❌ SYSTEM ERROR" : "⚠️ SYSTEM WARNING";
+            popupKind = kind;
+        }else{
+            const pool = SYS_EXTRA_ALERTS[p] || SYS_EXTRA_ALERTS["Little Miss Attitude"];
+            const item = pool[Math.floor(Math.random()*pool.length)];
+            heading = item[0];
+            message = item[1];
+            popupKind = EXTRA_ALERT_META[heading] || "notice";
+        }
         const photo = PERSONA_PHOTOS[p] || PERSONA_PHOTOS["Little Miss Attitude"];
         const popup = document.createElement("div");
-        popup.className = "systemAlertPopup " + kind;
-        popup.innerHTML = `<img class="systemAlertPhoto" src="${photo}" alt=""><div class="systemAlertBody"><strong>${kind==="error"?"❌ SYSTEM ERROR":"⚠️ SYSTEM WARNING"}</strong><p>${message}</p></div>`;
+        popup.className = "systemAlertPopup " + popupKind;
+        popup.innerHTML = `<img class="systemAlertPhoto" src="${photo}" alt=""><div class="systemAlertBody"><strong>${heading}</strong><p>${message}</p></div>`;
         document.body.appendChild(popup);
         setTimeout(()=>popup.classList.add("show"),50);
         setTimeout(()=>{
@@ -4722,7 +4812,12 @@ if (typeof lizzyTelegramNotify === "function") window.lizzyTelegramNotify = lizz
         const desktop = $("desktopArea");
         if(!desktop || desktop.classList.contains("hidden")) return;
         if(Math.random() > 0.28) return;
-        showSystemAlert(Math.random() < 0.5 ? "error" : "warning");
+        const roll = Math.random();
+        if(roll < 0.20) showSystemAlert("error");
+        else if(roll < 0.40) showSystemAlert("warning");
+        else if(roll < 0.60) showSystemAlert("heart");
+        else if(roll < 0.80) showSystemAlert("security");
+        else showSystemAlert("notice");
     }
     window.addEventListener("load",()=>{
         window.LizzyPerf?.add?.("personalitySystemAlerts", 30000, maybeShowSystemAlert);
