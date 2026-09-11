@@ -309,6 +309,9 @@ function renderProfile(){
  applyTakeoverLabels(on);
  if(!on) setTimeout(()=>window.applyPersonaFolderLabels?.(),0);
  if(on){
+   // Remove any normal personality alerts that were already on screen.
+   // From this point onward, Mikael Takeover owns the alert layer.
+   document.querySelectorAll(".systemAlertPopup").forEach(el=>el.remove());
    takeoverSticky();
    scheduleTakeoverMessage();
    setTimeout(()=>window.renderTakeoverExclusives?.(),0);

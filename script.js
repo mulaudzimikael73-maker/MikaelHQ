@@ -4811,6 +4811,13 @@ if (typeof lizzyTelegramNotify === "function") window.lizzyTelegramNotify = lizz
     function maybeShowSystemAlert(){
         const desktop = $("desktopArea");
         if(!desktop || desktop.classList.contains("hidden")) return;
+
+        // Mikael Takeover has exclusive control of the alert system.
+        // Never let the normal Lizzy/personality alert engine fire while
+        // Takeover Mode is active. This also works across script files
+        // without relying on a shared function scope.
+        if(document.body.classList.contains("mikaelTakeoverActive")) return;
+
         if(Math.random() > 0.28) return;
         const roll = Math.random();
         if(roll < 0.20) showSystemAlert("error");
