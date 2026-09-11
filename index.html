@@ -511,8 +511,8 @@
             <!-- Desktop Icons -->
 
                         <div class="desktopIcon" id="coopWorldIcon" role="button" tabindex="0"
-                 onclick="window.location.href='coop.html';"
-                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.location.href='coop.html';}">
+                 onclick="sessionStorage.setItem('lizzyReturnToDesktop','1');window.location.href='coop.html';"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sessionStorage.setItem('lizzyReturnToDesktop','1');window.location.href='coop.html';}">
                 <div class="desktopEmoji">❤️</div>
                 <span>Our Co-Op World</span>
             </div>

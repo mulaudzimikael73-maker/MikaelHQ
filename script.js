@@ -102,6 +102,21 @@ function sendYesEmail() {
 
 window.onload = () => {
 
+    // When Lizzy returns from Our Co-Op World, restore the desktop
+    // instead of sending her through the opening/start screen again.
+    const returnToDesktop = sessionStorage.getItem("lizzyReturnToDesktop") === "1";
+    if(returnToDesktop){
+        sessionStorage.removeItem("lizzyReturnToDesktop");
+        loading.style.display = "none";
+        hideAll();
+        secretEnding.classList.remove("hidden");
+        terminal.style.display = "none";
+        desktopArea.classList.remove("hidden");
+        progress = 100;
+        progressFill.style.width = "100%";
+        return;
+    }
+
     setTimeout(() => {
 
         loading.style.display = "none";

@@ -64,6 +64,20 @@ async function loadRap(){try{const d=await api("coop_rap");renderRap(d.state,d.r
 let rapPollTimer=null;function startRapPolling(){clearInterval(rapPollTimer);rapPollTimer=setInterval(()=>{const tab=$("rap");if(tab&&!tab.classList.contains("hidden"))loadRap()},3000)}startRapPolling();
 async function submitRap(){const t=$("rapText").value.trim();if(!t)return;try{const d=await api("lizzy_rap_submit",{text:t});$("rapText").value="";$("rapResult").textContent=d.state.phase==="revealed"?"⚖️ Both verses are in. The AI judge has decided!":"🔒 Written verse submitted. Waiting for Mikael…";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
 async function nextRap(){try{const d=await api("lizzy_rap_next");$("rapResult").textContent="";renderRap(d.state,d.rounds)}catch(e){$("rapResult").textContent=e.message}}
+// Back to the exact LizzyOS desktop she came from.
+// Our World is opened from the desktop, so browser history returns there
+// and script.js restores the desktop instead of restarting the story.
+const backButton = $("back");
+if(backButton){
+ backButton.onclick=()=>{
+  if(document.referrer && new URL(document.referrer).origin===location.origin){
+   history.back();
+  }else{
+   location.href="index.html#desktop";
+  }
+ };
+}
+
 // Co-op tabs
 
  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.add("hidden"));$(b.dataset.tab).classList.remove("hidden");document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));if(b.dataset.tab==="rap")loadRap();});
